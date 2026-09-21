@@ -18,6 +18,9 @@ const LIFETIME_KEY = 'wod-band:lifetime-reps'
 const RASTER_KEY = 'wod'
 const COLUMNS = 13
 const ROWS = 3
+const GAP = 2
+const NARROW = 45
+const WIDE = 60
 const DEFAULT = 0x01000000
 
 const PALETTE: Record<string, number> = {
@@ -402,27 +405,41 @@ export const register: Register = (on) => {
       const now = await $.clock.now()
       caption = captionText(now)
       const inRound = reps % REPS_PER_ROUND
+      const width = e.props.bodyColumns ?? 80
+      const status = norepTicks > 0 ? ' · no rep!' : chalkTicks > 0 ? ' · rep!' : running ? ' · working' : ''
+      const statusColor = norepTicks > 0 ? 'red' : chalkTicks > 0 ? 'green' : 'yellow'
+      if (width < NARROW) {
+        requestId = undefined
+        const head = `AMRAP ${clock(now - startedAt)} · r${round() + 1} · ${movement} ${inRound}/${REPS_PER_ROUND}`
+        return (
+          <Box flexDirection="column">
+            <Text wrap="truncate-end">
+              <Text bold color="#dd3b2a">{head.slice(0, width)}</Text>
+              <Text bold color={statusColor}>{head.length + status.length <= width ? status : ''}</Text>
+            </Text>
+            {rest}
+          </Box>
+        )
+      }
+      const cap = width - COLUMNS - GAP
+      const roundHead = `round ${round() + 1} · ${movement} ${inRound}/${REPS_PER_ROUND}`
+      const tally = width < WIDE
+        ? `${reps} reps`
+        : `${reps} reps · ${MOVEMENTS.map((m) => `${byMovement[m]} ${m}`).join(' · ')} · ${lifetime} all-time`
       return (
         <Box flexDirection="column">
-          <Box flexDirection="row" columnGap={2}>
+          <Box flexDirection="row" columnGap={GAP}>
             <Raster key={RASTER_KEY} columns={COLUMNS} rows={ROWS} cells={painted} />
             <Box flexDirection="column">
-              <Text>
+              <Text wrap="truncate-end">
                 <Text bold color="#dd3b2a">AMRAP</Text>
-                <Text dimColor>{` ${clock(now - startedAt)}`}</Text>
+                <Text dimColor>{` ${clock(now - startedAt)}`.slice(0, Math.max(0, cap - 5))}</Text>
               </Text>
-              <Text key="round">
-                <Text dimColor>round </Text>
-                <Text bold>{`${round() + 1}`}</Text>
-                <Text dimColor>{` · ${movement} `}</Text>
-                <Text bold>{`${inRound}/${REPS_PER_ROUND}`}</Text>
-                {running ? <Text color="yellow"> · working</Text> : null}
-                {chalkTicks > 0 && norepTicks === 0 ? <Text color="green"> · rep!</Text> : null}
-                {norepTicks > 0 ? <Text bold color="red"> · no rep!</Text> : null}
+              <Text key="round" wrap="truncate-end">
+                <Text dimColor>{roundHead.slice(0, cap)}</Text>
+                <Text bold color={statusColor}>{roundHead.length + status.length <= cap ? status : ''}</Text>
               </Text>
-              <Text key="tally" dimColor>
-                {`${reps} reps this session (${MOVEMENTS.map((m) => `${byMovement[m]} ${m}`).join(' · ')}) · ${lifetime} all-time`}
-              </Text>
+              <Text key="tally" dimColor wrap="truncate-end">{tally.slice(0, cap)}</Text>
             </Box>
           </Box>
           {rest}

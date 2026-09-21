@@ -1,5 +1,5 @@
 /* @jsx h */
-import type { EngineInterface, Register, RenderElement, SessionMeasureInput } from 'claude-code'
+import type { EngineInterface, Register, SessionMeasureInput } from 'claude-code'
 
 // The limit windows and this session's context fill on one line above the prompt.
 //
@@ -100,6 +100,75 @@ const nudge = ($: EngineInterface): void => {
       timeoutMs: 8000,
     })
   }
+}
+
+type Part = { text: string; dim?: boolean; bold?: boolean; color?: string }
+type Segment = { parts: Part[]; drop: number }
+
+const family = (id: string) => /opus|sonnet|fable|haiku/.exec(id)?.[0] ?? id.replace(/^claude-/, '').replace(/\[1m\]$/, '')
+
+const GAP = '  '
+const width = (list: Segment[]) => list.reduce((n, s) => n + s.parts.reduce((m, p) => m + p.text.length, 0), 0) + GAP.length * Math.max(0, list.length - 1)
+
+// The whole line as one string, measured against the band's columns and shed by priority until it
+// fits: the turn delta, project, account, then the model to its family word, then cost, then the
+// nudge. The windows and the context fill are never shed. The "usage" label goes under 60 columns.
+export const layout = (state: {
+  account?: string
+  project?: string
+  model?: string
+  reading: Reading
+  delta?: Delta
+  now: number
+  columns: number
+}): Part[] => {
+  const { fiveHour, fiveHourResetsAt, sevenDay, ctxPercent, ctxTokens, usd } = state.reading
+  const left = fiveHourResetsAt !== undefined ? countdown(fiveHourResetsAt - state.now) : undefined
+  const segments: Segment[] = []
+  if (state.columns >= 60) segments.push({ parts: [{ text: 'usage', dim: true }], drop: 0 })
+  if (state.account !== undefined) segments.push({ parts: [{ text: state.account, color: 'cyan' }], drop: 3 })
+  if (state.project !== undefined) segments.push({ parts: [{ text: state.project, color: 'magenta' }], drop: 2 })
+  if (state.model !== undefined) segments.push({ parts: [{ text: state.model, dim: true }], drop: 4 })
+  if (fiveHour !== undefined) {
+    segments.push({
+      parts: [{ text: '5h ', dim: true }, { text: `${Math.round(fiveHour)}%`, bold: true, color: heat(fiveHour) }, ...(left ? [{ text: ` ↻${left}`, dim: true }] : [])],
+      drop: 0,
+    })
+  }
+  if (sevenDay !== undefined) {
+    segments.push({ parts: [{ text: '7d ', dim: true }, { text: `${Math.round(sevenDay)}%`, bold: true, color: heat(sevenDay) }], drop: 0 })
+  }
+  if (ctxPercent !== undefined) {
+    segments.push({
+      parts: [
+        { text: 'ctx ', dim: true },
+        { text: `${Math.round(ctxPercent)}%`, bold: true, color: heat(ctxPercent) },
+        ...(ctxTokens !== undefined ? [{ text: ` ${tokens(ctxTokens)}`, dim: true }] : []),
+      ],
+      drop: 0,
+    })
+  }
+  if (usd !== undefined) segments.push({ parts: [{ text: `$${usd.toFixed(2)}`, dim: true }], drop: 5 })
+  if (state.delta) {
+    const d = state.delta
+    segments.push({ parts: [{ text: `last ${tokens(d.in)} in · ${tokens(d.out)} out · ${tokens(d.cache)} cache`, dim: true }], drop: 1 })
+  }
+  if (ctxPercent !== undefined && ctxPercent >= NUDGE_AT) segments.push({ parts: [{ text: '· /clear on a new task', color: 'yellow' }], drop: 6 })
+
+  let kept = segments
+  let shortened = false
+  while (width(kept) > state.columns) {
+    const droppable = kept.filter((s) => s.drop > 0)
+    if (!droppable.length) break
+    const gone = droppable.reduce((a, b) => (a.drop < b.drop ? a : b))
+    if (gone.drop === 4 && !shortened && state.model !== undefined) {
+      shortened = true
+      kept = kept.map((s) => (s === gone ? { parts: [{ text: family(state.model ?? ''), dim: true }], drop: 4 } : s))
+      continue
+    }
+    kept = kept.filter((s) => s !== gone)
+  }
+  return kept.flatMap((s, i) => (i ? [{ text: GAP, dim: true }, ...s.parts] : s.parts))
 }
 
 export const countdown = (ms: number) => {
@@ -218,89 +287,23 @@ export const register: Register = (on, options) => {
       if (!reading) {
         return (
           <Box flexDirection="column">
-            <Text dimColor>{account ? `usage · ${account} · no reading yet` : 'usage · no reading yet'}</Text>
+            <Text dimColor wrap="truncate">{account ? `usage · ${account} · no reading yet` : 'usage · no reading yet'}</Text>
             {rest}
           </Box>
         )
       }
 
-      const { fiveHour, fiveHourResetsAt, sevenDay, ctxPercent, ctxTokens, usd } = reading
       const now = await $.clock.now()
-      const left = fiveHourResetsAt !== undefined ? countdown(fiveHourResetsAt - now) : undefined
-
-      // Each segment knows its width, so the line can shed its least useful parts, the delta first,
-      // until it fits the band's columns on one row.
-      type Segment = { key: string; width: number; node: RenderElement; drop: number }
-      const seg = (key: string, text: string, node: RenderElement, drop = 0): Segment => ({ key, width: text.length, node, drop })
-      const segments: Segment[] = [seg('usage', 'usage', <Text dimColor>usage</Text>)]
-      if (account !== undefined) segments.push(seg('account', account, <Text color="cyan">{account}</Text>, 3))
-      if (project !== undefined) segments.push(seg('project', project, <Text color="magenta">{project}</Text>, 2))
-      if (model !== undefined) segments.push(seg('model', model, <Text dimColor>{model}</Text>, 4))
-      if (fiveHour !== undefined) {
-        const text = `5h ${Math.round(fiveHour)}%${left ? ` ↻${left}` : ''}`
-        segments.push(
-          seg(
-            '5h',
-            text,
-            <Text>
-              <Text dimColor>5h </Text>
-              <Text bold color={heat(fiveHour)}>{`${Math.round(fiveHour)}%`}</Text>
-              {left ? <Text dimColor>{` ↻${left}`}</Text> : null}
-            </Text>,
-          ),
-        )
-      }
-      if (sevenDay !== undefined) {
-        segments.push(
-          seg(
-            '7d',
-            `7d ${Math.round(sevenDay)}%`,
-            <Text>
-              <Text dimColor>7d </Text>
-              <Text bold color={heat(sevenDay)}>{`${Math.round(sevenDay)}%`}</Text>
-            </Text>,
-          ),
-        )
-      }
-      if (ctxPercent !== undefined) {
-        const tail = ctxTokens !== undefined ? ` ${tokens(ctxTokens)}` : ''
-        segments.push(
-          seg(
-            'ctx',
-            `ctx ${Math.round(ctxPercent)}%${tail}`,
-            <Text>
-              <Text dimColor>ctx </Text>
-              <Text bold color={heat(ctxPercent)}>{`${Math.round(ctxPercent)}%`}</Text>
-              {tail ? <Text dimColor>{tail}</Text> : null}
-            </Text>,
-          ),
-        )
-      }
-      if (usd !== undefined) segments.push(seg('usd', `$${usd.toFixed(2)}`, <Text dimColor>{`$${usd.toFixed(2)}`}</Text>, 5))
-      if (delta) {
-        const text = `last ${tokens(delta.in)} in · ${tokens(delta.out)} out · ${tokens(delta.cache)} cache`
-        segments.push(seg('last', text, <Text dimColor>{text}</Text>, 1))
-      }
-      if (ctxPercent !== undefined && ctxPercent >= NUDGE_AT) {
-        segments.push(seg('nudge', '· /clear on a new task', <Text color="yellow">· /clear on a new task</Text>))
-      }
-
-      const width = (list: Segment[]) => list.reduce((n, s) => n + s.width, 0) + 2 * (list.length - 1)
-      let shownSegments = segments
-      while (width(shownSegments) > e.props.bodyColumns) {
-        const droppable = shownSegments.filter((s) => s.drop > 0)
-        if (!droppable.length) break
-        const gone = droppable.reduce((a, b) => (a.drop < b.drop ? a : b))
-        shownSegments = shownSegments.filter((s) => s !== gone)
-      }
-
+      const parts = layout({ account, project, model, reading, delta, now, columns: e.props.bodyColumns || 80 })
       return (
         <Box flexDirection="column">
-          <Box flexDirection="row" columnGap={2}>
-            {shownSegments.map((s) => (
-              <Box key={s.key}>{s.node}</Box>
+          <Text wrap="truncate">
+            {parts.map((p, i) => (
+              <Text key={String(i)} dimColor={p.dim} bold={p.bold} color={p.color}>
+                {p.text}
+              </Text>
             ))}
-          </Box>
+          </Text>
           {rest}
         </Box>
       )

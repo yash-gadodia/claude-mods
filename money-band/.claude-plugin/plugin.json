@@ -1,6 +1,6 @@
 {
   "name": "money-band",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "A line above the prompt with liquid assets, CPF, debt and month-to-date spend, read from a pair of SQLite databases over ssh, and the emergency fund's fill in the prompt footer.",
   "author": {
     "name": "Yash Gadodia"

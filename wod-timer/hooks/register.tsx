@@ -88,10 +88,19 @@ const speak = ($: EngineInterface, ms: number) => {
     .catch((err) => $.ui.log(`wod-timer: voice failed: ${err}`))
 }
 
-const summary = () => {
+const tail = () => {
   const avg = splits.reduce((a, b) => a + b, 0) / splits.length
   const longest = Math.max(...splits)
-  return `avg ${clock(avg)} · longest ${clock(longest)} · ${splits.length} turns`
+  return [` · avg ${clock(avg)}`, ` · longest ${clock(longest)}`, ` · ${splits.length} turns`]
+}
+
+const summary = () => tail().map((t) => t.slice(3)).join(' · ')
+
+// Sheds parts from the end until head plus the rest fits the width.
+export const fit = (width: number, head: string, parts: string[]) => {
+  const kept = [...parts]
+  while (kept.length > 0 && head.length + kept.join('').length > width) kept.pop()
+  return kept.join('')
 }
 
 // The first thing anyone does when a mod misbehaves is try to turn it off. `CLAUDE_MODS_DISABLE=all`,
@@ -229,38 +238,38 @@ export const register: Register = (on) => {
       const { Box, Text } = await $.ui.resolve(e)
       const rest = await next(e)
       const now = await $.clock.now()
+      const width = e.props.bodyColumns ?? 80
       let line
       if (phase === 'count') {
         const word = COUNT[Math.min(beat, COUNT.length - 1)]!
         const colour = word === 'GO' ? 'green' : word === '1' ? 'yellow' : '#dd3b2a'
         line = (
-          <Text>
+          <Text wrap="truncate-end">
             <Text dimColor>timer  </Text>
-            {COUNT.slice(0, beat).map((w, i) => (
-              <Text key={`${i}`} dimColor>{`${w} · `}</Text>
-            ))}
+            <Text dimColor>{COUNT.slice(0, beat).map((w) => `${w} · `).join('')}</Text>
             <Text bold color={colour}>{word}</Text>
           </Text>
         )
       } else if (phase === 'run') {
+        const t = clock(now - origin())
         line = (
-          <Text>
+          <Text wrap="truncate-end">
             <Text dimColor>timer  </Text>
-            <Text bold color="green">{clock(now - origin())}</Text>
-            <Text dimColor> running</Text>
+            <Text bold color="green">{t}</Text>
+            <Text dimColor>{fit(width, `timer  ${t}`, [' running'])}</Text>
           </Text>
         )
       } else if (last !== undefined) {
+        const head = `timer  split ${clock(last)}`
         line = (
-          <Text>
-            <Text dimColor>timer  </Text>
-            <Text dimColor>split </Text>
+          <Text wrap="truncate-end">
+            <Text dimColor>timer  split </Text>
             <Text bold>{clock(last)}</Text>
-            <Text dimColor>{` · ${summary()}`}</Text>
+            <Text dimColor>{fit(width, head, tail())}</Text>
           </Text>
         )
       } else {
-        line = <Text dimColor>timer  ready · 3, 2, 1 on your next prompt</Text>
+        line = <Text dimColor wrap="truncate-end">timer  ready · 3, 2, 1 on your next prompt</Text>
       }
       return (
         <Box flexDirection="column">

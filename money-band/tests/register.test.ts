@@ -15,13 +15,14 @@ const money = (args: string): CommandRunInput => ({
   command: 'money', args, origin: { kind: 'composer' }, presentation: { isFullscreen: false, columns: 80 },
 })
 
-const band: RenderInput<'AbovePrompt'> = {
+const bandAt = (bodyColumns: number): RenderInput<'AbovePrompt'> => ({
   component: 'AbovePrompt',
   surface: 'terminal',
   requestId: 'band',
-  viewport: { columns: 160, rows: 40, isFullscreen: false },
-  props: { hasSurvey: false, isWorking: false, maxRows: 20, bodyColumns: 160, scroll: { offset: 0, bodyRows: 20 }, view: {} },
-}
+  viewport: { columns: bodyColumns, rows: 40, isFullscreen: false },
+  props: { hasSurvey: false, isWorking: false, maxRows: 20, bodyColumns, scroll: { offset: 0, bodyRows: 20 }, view: {} },
+})
+const band = bandAt(160)
 
 const ANSWER = 'NW<120000|900000|60000|823000|2026-09-20>NW\nFIN<2500|31|2026-09-21|900 Freshkitchen>FIN\nEF<12300>EF\n'
 
@@ -133,6 +134,23 @@ describe('timer', () => {
     expect(line).toContain('liquid S$120k')
     expect(line).toContain('debt S$823k')
     expect(line).toContain('spent this month S$2.5k')
+    expect(line).toContain('· 2026-09-20')
+  })
+
+  test('a narrow band sheds the date, spend, debt, cpf and the label, and keeps net and liquid', async ($, on) => {
+    const w = world(on)
+    await $.session.start(session)
+    await w.clock.settle()
+    for (const columns of [40, 50, 80]) {
+      const line = textOf(await $.ui.render(bandAt(columns)))
+      expect(line.length).toBeLessThanOrEqual(columns)
+      expect(line).toContain('net S$257k')
+      expect(line).toContain('liquid S$120k')
+    }
+    expect(textOf(await $.ui.render(bandAt(40)))).toBe('money  net S$257k  liquid S$120k')
+    expect(textOf(await $.ui.render(bandAt(50)))).toBe('money  net S$257k  liquid S$120k  cpf S$60.0k')
+    expect(textOf(await $.ui.render(bandAt(80)))).toBe('money  net S$257k  liquid S$120k  cpf S$60.0k  debt S$823k')
+    expect(textOf(await $.ui.render(bandAt(90)))).toBe('money  net S$257k  liquid S$120k  cpf S$60.0k  debt S$823k  spent this month S$2.5k')
   })
 
   test('the footer carries the emergency fund over its target, and nothing when the account answered empty', async ($, on) => {

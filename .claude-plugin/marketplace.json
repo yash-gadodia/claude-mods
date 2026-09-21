@@ -44,13 +44,13 @@
       "name": "money-band",
       "source": "./money-band",
       "description": "A money line above the prompt, read from SQLite databases over ssh.",
-      "version": "0.4.0"
+      "version": "0.4.1"
     },
     {
       "name": "usage-band",
       "source": "./usage-band",
       "description": "Limit windows, context fill and cost above the prompt, with a nudge to clear.",
-      "version": "0.4.0"
+      "version": "0.4.1"
     },
     {
       "name": "copy-band",
@@ -68,13 +68,13 @@
       "name": "wod-band",
       "source": "./wod-band",
       "description": "A pixel Ragtag athlete above the prompt: every turn is a rep, the session is an AMRAP.",
-      "version": "0.3.0"
+      "version": "0.3.1"
     },
     {
       "name": "wod-timer",
       "source": "./wod-timer",
       "description": "3, 2, 1, GO on submit, a running clock per turn, and the split when it lands.",
-      "version": "0.4.0"
+      "version": "0.4.1"
     }
   ],
   "description": "Mods that keep an agent honest, plus a few that make the terminal fun. Function-hooks plugins for Claude Code.",

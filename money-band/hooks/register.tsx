@@ -261,32 +261,37 @@ export const register: Register = (on, options) => {
       }
 
       const stale = daysSince(money.asOf, money.at)
+      const netText = `S$${sgd(net(money))}`
+      // One string measured against the band's columns, shedding the least useful figure first,
+      // because a row of separate Text nodes wraps into stacked fragments at fifty columns.
+      const tail: [string, number][] = [
+        ['money', 5],
+        [`net ${netText}`, 0],
+        [`liquid S$${sgd(money.liquid)}`, 0],
+        [`cpf S$${sgd(money.cpf)}`, 4],
+        [`debt S$${sgd(money.debt)}`, 3],
+        [`spent this month S$${sgd(money.spend)}`, 2],
+        [stale !== undefined && stale > 30 ? `· balances ${stale}d old` : `· ${money.asOf}`, 1],
+      ]
+      const columns = e.props.bodyColumns || 80
+      const width = (list: [string, number][]) => list.reduce((n, [t]) => n + t.length, 0) + 2 * (list.length - 1)
+      let kept = tail
+      while (width(kept) > columns) {
+        const drop = kept.filter(([, d]) => d > 0).reduce((a, b) => (a[1] < b[1] ? a : b), ['', Infinity] as [string, number])
+        if (!Number.isFinite(drop[1])) break
+        kept = kept.filter(x => x !== drop)
+      }
+      const at = kept.findIndex(([t]) => t.startsWith('net '))
+      const before = kept.slice(0, at).map(([t]) => t).join('  ')
+      const after = kept.slice(at + 1).map(([t]) => t).join('  ')
       return (
         <Box flexDirection="column">
-          <Box flexDirection="row" columnGap={2}>
-            <Text dimColor>money</Text>
-            <Text>
-              <Text dimColor>net </Text>
-              <Text bold color={net(money) >= 0 ? 'green' : 'red'}>{`S$${sgd(net(money))}`}</Text>
-            </Text>
-            <Text>
-              <Text dimColor>liquid </Text>
-              <Text color="green">{`S$${sgd(money.liquid)}`}</Text>
-            </Text>
-            <Text>
-              <Text dimColor>cpf </Text>
-              <Text color="cyan">{`S$${sgd(money.cpf)}`}</Text>
-            </Text>
-            <Text>
-              <Text dimColor>debt </Text>
-              <Text color="red">{`S$${sgd(money.debt)}`}</Text>
-            </Text>
-            <Text>
-              <Text dimColor>spent this month </Text>
-              <Text bold color="yellow">{`S$${sgd(money.spend)}`}</Text>
-            </Text>
-            {stale !== undefined && stale > 30 ? <Text dimColor>{`· balances ${stale}d old`}</Text> : <Text dimColor>{`· ${money.asOf}`}</Text>}
-          </Box>
+          <Text wrap="truncate-end" dimColor>
+            {before ? `${before}  ` : ''}
+            {'net '}
+            <Text bold color={net(money) >= 0 ? 'green' : 'red'}>{netText}</Text>
+            {after ? `  ${after}` : ''}
+          </Text>
           {rest}
         </Box>
       )

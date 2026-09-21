@@ -22,16 +22,16 @@ const duration = (requestId: string, durationMs: number, word = 'Cooked') => ({
   props: { word, durationMs },
 })
 
-const band = () => ({
+const band = (bodyColumns = 80) => ({
   surface: 'terminal' as const,
   component: 'AbovePrompt' as const,
   requestId: 'band-1',
-  viewport: { columns: 80, rows: 24 },
+  viewport: { columns: bodyColumns, rows: 24 },
   props: {
     hasSurvey: false,
     isWorking: false,
     maxRows: 10,
-    bodyColumns: 80,
+    bodyColumns,
     scroll: { offset: 0, bodyRows: 9 },
     view: {},
   },
@@ -65,6 +65,18 @@ function world(on: On) {
 const shown = async ($: Engine, input: ReturnType<typeof spinner> | ReturnType<typeof duration>) => {
   const tree = await $.ui.render(input)
   return tree.type === 'Text' ? String(tree.children?.[0]) : tree.type
+}
+
+const firstLine = (tree: unknown): string => {
+  const first = (tree as { children?: unknown[] }).children?.[0]
+  const out: string[] = []
+  const walk = (node: unknown) => {
+    if (typeof node === 'string') out.push(node)
+    else if (Array.isArray(node)) node.forEach(walk)
+    else if (node && typeof node === 'object') walk((node as { children?: unknown }).children)
+  }
+  walk(first)
+  return out.join('')
 }
 
 const step = async ($: Engine, turnId: string) => {
@@ -211,5 +223,35 @@ describe('wod-timer', () => {
     expect(await shown($, spinner())).toBe('Cooking')
     await w.clock.advance(BEAT * 4 + 5_000)
     expect(w.invalidations.length).toBe(0)
+  })
+
+  test('the band line fits 40, 50 and 80 columns and always keeps the split', async ($, on) => {
+    const w = world(on)
+    await $.session.start(SESSION)
+    for (let i = 0; i < 39; i++) {
+      await submit($)
+      await $.turn.start({ text: 'hi', turnId: `t${i}` })
+      await step($, `t${i}`)
+      await w.clock.advance(i === 0 ? 6_507_000 : 21_000)
+      await complete($, `t${i}`)
+    }
+    for (const cols of [40, 50, 80]) {
+      const line = firstLine(await $.ui.render(band(cols)))
+      expect(line.length, `${cols} columns: "${line}"`).toBeLessThanOrEqual(cols)
+      expect(line).toMatch(/^timer  split 0:21/)
+      if (cols === 80) expect(line).toBe('timer  split 0:21 · avg 3:07 · longest 108:27 · 39 turns')
+      if (cols === 50) expect(line).toBe('timer  split 0:21 · avg 3:07 · longest 108:27')
+      if (cols === 40) expect(line).toBe('timer  split 0:21 · avg 3:07')
+    }
+    await submit($)
+    await $.turn.start({ text: 'hi', turnId: 'run' })
+    await w.clock.advance(BEAT * 4)
+    await step($, 'run')
+    await w.clock.advance(12_000)
+    for (const cols of [40, 50, 80]) {
+      const line = firstLine(await $.ui.render(band(cols)))
+      expect(line.length).toBeLessThanOrEqual(cols)
+      expect(line).toMatch(/^timer  0:12/)
+    }
   })
 })

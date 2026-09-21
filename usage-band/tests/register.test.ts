@@ -108,6 +108,7 @@ describe('band', () => {
     expect(line).toContain('ctx 12% 120k')
     expect(line).toContain('$1.50')
     expect(line).toContain('volty')
+    expect(line).toContain('usage')
   })
 
   test('the countdown moves with the clock', async ($, on) => {
@@ -128,6 +129,25 @@ describe('band', () => {
     const narrow = textOf(await $.ui.render(band(70)))
     expect(narrow).not.toContain('last ')
     expect(narrow).toContain('5h 15% ↻2h10m')
+  })
+
+  test('the line never exceeds the band at 40, 50, 80 and 120 columns and always keeps 5h, 7d and ctx', async ($, on) => {
+    world(on, { HOME: '/home/yash' })
+    await $.session.start(session)
+    await $.session.measure(measure({ context: { window: 1_000_000, tokens: 660_000, percent: 66 } }))
+    await $.turn.complete(turn())
+    for (const columns of [40, 50, 80, 120]) {
+      const line = textOf(await $.ui.render(band(columns)))
+      expect(line.length, `${columns} columns: "${line}"`).toBeLessThanOrEqual(columns)
+      expect(line).toContain('5h 15% ↻2h10m')
+      expect(line).toContain('7d 40%')
+      expect(line).toContain('ctx 66% 660k')
+      if (columns < 60) expect(line).not.toContain('usage')
+    }
+    expect(textOf(await $.ui.render(band(160)))).toContain('last 2k in')
+    const at80 = textOf(await $.ui.render(band(80)))
+    expect(at80).not.toContain('last ')
+    expect(at80).toContain('  fable  ')
   })
 
   test('a subagent turn moves nothing', async ($, on) => {

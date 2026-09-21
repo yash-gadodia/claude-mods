@@ -1,6 +1,6 @@
 {
   "name": "usage-band",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "A line above the prompt with the five-hour and seven-day limit windows, this session's context fill and cost, plus a nudge to clear when the window gets expensive. The footer shows the cost in Singapore dollars.",
   "author": {
     "name": "Yash Gadodia"
