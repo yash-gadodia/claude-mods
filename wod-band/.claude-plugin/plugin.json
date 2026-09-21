@@ -1,6 +1,8 @@
 {
   "name": "wod-band",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "A pixel-art Ragtag athlete above the prompt who does a rep every turn: the session is an AMRAP of thrusters, burpees and pull-ups.",
-  "author": { "name": "Yash Gadodia" }
+  "author": {
+    "name": "Yash Gadodia"
+  }
 }

@@ -1,6 +1,8 @@
 {
   "name": "deploy-verify",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "After a deploy command succeeds, curls the live URL with cache-busting and puts the verdict in the model's context, so a deploy cannot be claimed without evidence.",
-  "author": { "name": "Yash Gadodia" }
+  "author": {
+    "name": "Yash Gadodia"
+  }
 }

@@ -1,6 +1,8 @@
 {
   "name": "wod-timer",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "3, 2, 1, GO above the prompt when you submit, a running gym clock while Claude works, and your split when the turn lands.",
-  "author": { "name": "Yash Gadodia" }
+  "author": {
+    "name": "Yash Gadodia"
+  }
 }
