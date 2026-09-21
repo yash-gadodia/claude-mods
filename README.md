@@ -13,7 +13,7 @@ usage  max  volty  opus-5  5h 34%  7d 12%  ctx 41% 82k  $1.23
 scope: 3/4 files
  ▸
 ```
-<sub>Ten mods, each drawing or guarding its own slice of the session. Above: `usage-band` and `scope-guard`.</sub>
+<sub>Twelve mods, each drawing or guarding its own slice of the session. Above: `usage-band` and `scope-guard`.</sub>
 
 ![usage-band, wod-band and wod-timer above the prompt](docs/wod-band.png)
 <sub>`usage-band`, `wod-band` and `wod-timer` in a live session.</sub>
@@ -63,6 +63,8 @@ Install only what you want — each mod is independent. Update with
 |---|---|
 | **scope-guard** | Counts the distinct files one turn edits. At the threshold it stops and makes the goal get restated, so a small ask cannot quietly become a refactor. `/scope` sets it. |
 | **deploy-verify** | After a deploy command succeeds, waits for the GitHub Actions run it started, then curls the live URL with cache-busting and puts the verdict in the model's context. A deploy cannot be claimed without evidence. |
+| **receipt** | The turn footer becomes a receipt: edits, runs and curls, with a warning when edits ran nothing. Destructive commands are never folded into a tool group, a claim of "fixed" with no run puts "unverified claim pending" in the spinner, and Tab suggests running the tests. |
+| **diff-review** | A docked pane with each edited file's hunk and keep or revert buttons. Reverting runs git directly; no model turn. |
 | **merge-gate** | Denies `gh pr merge`, a `git merge` on trunk, or a push to main unless the latest human message contains the word merge. Ship, push and deploy do not count. `/merge-gate` toggles it. |
 | **mini-offload** | Rewrites heavy Bash commands (test suites, builds, Docker) to run on a second machine over ssh — syncing the commit there first, because the remote checkout is the real hazard. `/mini` sets always, ask, or off. |
 
@@ -80,7 +82,7 @@ Install only what you want — each mod is independent. Update with
 | Mod | What it does |
 |---|---|
 | **wod-band** | A pixel-art athlete above the prompt who does a rep every turn. The session is an AMRAP of thrusters, burpees and pull-ups. |
-| **wod-timer** | 3, 2, 1, GO when you submit, a running gym clock while Claude works, and your split when the turn lands. |
+| **wod-timer** | 3, 2, 1, GO in the spinner when you submit, a running gym clock while Claude works, and a whiteboard split in the footer when the turn lands: turn, time, AMRAP total, PR. `/wod-timer voice on` reads long splits aloud. |
 
 ## Turning them off
 
@@ -109,6 +111,10 @@ editable through `/config` rather than by hand:
   every offloaded command). Per-repo overrides live at `<repo>/.claude/mini-offload.json`.
 - **money-band** — `host`, `networthDb`, `financeDb`. Expects SQLite databases with
   `accounts`/`balances` and `transactions` tables.
+  `efAccount` (default `UOB One`) and `efTarget` (default 30000) feed the `EF 41%` footer label.
+- **usage-band** — `sgdRate` (default 1.30) for the `S$` footer label; `/usage-band sgd off` hides it.
+- **receipt** — `/receipt on|off|status`.
+- **diff-review** — `/diff-review open|close|on|off`.
 - **deploy-verify** — per-repo, at `<repo>/.claude/deploy-verify.json`:
   ```json
   { "url": "https://example.com", "matchFile": "VERSION" }

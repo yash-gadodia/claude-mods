@@ -1,0 +1,3 @@
+./register.ts calls: $.command.register, $.env.get, $.prompt.suggest, $.store.get, $.store.set, $.ui.invalidate, $.ui.log
+./register.ts env reads: CLAUDE_MODS_DISABLE
+./register.ts hooks: session.start, command.run{command=receipt}, turn.start, tool.call, turn.complete, prompt.suggest, ui.render{component=Spinner}, ui.render{component=TurnDuration}, ui.render{component=ToolGroup}

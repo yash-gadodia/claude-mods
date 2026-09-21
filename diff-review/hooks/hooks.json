@@ -1,0 +1,4 @@
+{
+  "description": "tool.call on Edit, Write, NotebookEdit and Bash fetches the file's git diff once the tool lands and opens the diff pane where the terminal is wide enough; ui.render on Pane draws each file's hunk as a Code diff with [keep] and [revert]; ui.press keyed by id dismisses or runs git checkout with no model turn; /diff-review open|close|on|off",
+  "modules": ["./register.tsx"]
+}

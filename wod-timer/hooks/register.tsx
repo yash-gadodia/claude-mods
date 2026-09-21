@@ -3,23 +3,31 @@ import type { EngineInterface, Register } from 'claude-code'
 
 // A gym timer for each turn. Submitting a prompt starts "3 · 2 · 1 · GO" (450ms a beat) in the
 // band and in the spinner's word, then the clock runs a second at a time from the turn's first
-// model request until the turn lands, when the split is written into the band and into the
-// "Cooked for 1m 5s" line beside the session's average and longest. Tickers are started only by
-// prompt.submit and turn.start and stopped by turn.complete and turn.abort, never by a render.
+// model request until the turn lands. The split goes on the band beside the session's average and
+// longest, and the "Cooked for 1m 5s" line becomes the whiteboard: turn number, split, AMRAP (the
+// session's running total) and PR when this is the fastest turn over 5s so far. With voice on, a
+// turn over a minute is read aloud from turn.complete. Tickers are started only by prompt.submit
+// and turn.start and stopped by turn.complete and turn.abort, never by a render.
 
 const BEAT_MS = 450
 const MIN_REDRAW_MS = 100
 const SHOWN_KEY = 'wod-timer:shown'
+const VOICE_KEY = 'wod-timer:voice'
+const PR_MIN_MS = 5_000
+const SPEAK_MIN_MS = 60_000
 
 let shown = true
+let voice = false
 let phase: 'idle' | 'count' | 'run' = 'idle'
 let beat = 0
 let startedAt = 0
 let requestAt: number | undefined
 let last: number | undefined
-let pending: number | undefined
+type Row = { n: number; split: number; total: number; pr: boolean }
+let pending: Row | undefined
 let splits: number[] = []
-const rowSplit = new Map<string, number>()
+let best: number | undefined
+const rows = new Map<string, Row>()
 let lastDraw = -Infinity
 let tick: { cancel: () => void } | undefined
 
@@ -54,14 +62,30 @@ function startRun($: EngineInterface) {
 
 async function land($: EngineInterface, counts: boolean) {
   stop()
+  let split: number | undefined
   if (phase !== 'idle' && counts) {
-    last = (await $.clock.now()) - origin()
-    pending = last
-    splits.push(last)
+    split = (await $.clock.now()) - origin()
+    last = split
+    splits.push(split)
+    const pr = split > PR_MIN_MS && (best === undefined || split < best)
+    if (pr) best = split
+    pending = { n: splits.length, split, total: splits.reduce((a, b) => a + b, 0), pr }
   }
   phase = 'idle'
   requestAt = undefined
   await redraw($)
+  return split
+}
+
+const whiteboard = (r: Row) => `turn ${r.n} · ${clock(r.split)} · AMRAP ${clock(r.total)}${r.pr ? ' · PR' : ''}`
+
+const speak = ($: EngineInterface, ms: number) => {
+  const m = Math.floor(ms / 60_000)
+  const s = Math.floor(ms / 1000) % 60
+  const text = `${m} minute${m === 1 ? '' : 's'}${s ? ` ${s}` : ''}, done`
+  Promise.resolve()
+    .then(() => $.audio.speak(text))
+    .catch((err) => $.ui.log(`wod-timer: voice failed: ${err}`))
 }
 
 const summary = () => {
@@ -88,11 +112,12 @@ export const register: Register = (on) => {
     const r = await next(e)
     if (await readDisabled($)) return r
     if ((await $.store.get(SHOWN_KEY).catch(() => undefined)) === false) shown = false
+    if ((await $.store.get(VOICE_KEY).catch(() => undefined)) === true) voice = true
     await $.command
       .register({
         name: 'wod-timer',
-        description: '3-2-1-GO on submit and a running clock per turn (wod-timer)',
-        argumentHint: '[on | off]',
+        description: '3-2-1-GO on submit, a running clock per turn and a whiteboard split (wod-timer)',
+        argumentHint: '[on | off | voice on | voice off]',
         immediate: true,
       })
       .catch((err) => $.ui.log(`wod-timer: /wod-timer not registered: ${err}`))
@@ -100,7 +125,12 @@ export const register: Register = (on) => {
   })
 
   on('command.run', { command: 'wod-timer' }, async ($, e) => {
-    const arg = e.args.trim().toLowerCase()
+    const arg = e.args.trim().toLowerCase().replace(/\s+/g, ' ')
+    if (arg === 'voice on' || arg === 'voice off') {
+      voice = arg === 'voice on'
+      await $.store.set(VOICE_KEY, voice).catch(() => undefined)
+      return { text: `wod timer voice ${voice ? 'on: turns over a minute are read aloud' : 'off'}` }
+    }
     if (arg === 'off') {
       shown = false
       stop()
@@ -114,7 +144,7 @@ export const register: Register = (on) => {
       $.ui.invalidate('ui.render')
       return { text: 'wod timer on' }
     }
-    return { text: `wod-timer: no such argument "${arg}" — use on or off` }
+    return { text: `wod-timer: no such argument "${arg}" — use on, off, voice on or voice off` }
   })
 
   on('prompt.submit', async ($, e, next) => {
@@ -161,7 +191,10 @@ export const register: Register = (on) => {
   on('turn.complete', async ($, e, next) => {
     if (disabled) return next(e)
     const r = await next(e)
-    if (e.agentId === undefined) await land($, true)
+    if (e.agentId === undefined) {
+      const split = await land($, true)
+      if (voice && split !== undefined && split > SPEAK_MIN_MS) speak($, split)
+    }
     return r
   })
 
@@ -179,14 +212,14 @@ export const register: Register = (on) => {
 
   on('ui.render', { component: 'TurnDuration' }, async ($, e, next) => {
     if (disabled || !shown || e.surface !== 'terminal') return next(e)
-    let split = rowSplit.get(e.requestId)
-    if (split === undefined && pending !== undefined) {
-      split = pending
+    let row = rows.get(e.requestId)
+    if (row === undefined && pending !== undefined) {
+      row = pending
       pending = undefined
-      rowSplit.set(e.requestId, split)
+      rows.set(e.requestId, row)
     }
-    if (split === undefined) return next(e)
-    return next({ ...e, props: { ...e.props, word: `Split ${clock(split)} (${summary()}) · ${e.props.word}` } })
+    if (row === undefined) return next(e)
+    return next({ ...e, props: { ...e.props, word: `${whiteboard(row)} · ${e.props.word}` } })
   })
 
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {

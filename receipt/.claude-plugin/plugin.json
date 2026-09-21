@@ -1,0 +1,18 @@
+{
+  "name": "receipt",
+  "version": "0.1.0",
+  "description": "Keeps a per-turn tally of edits, runs, curls and destructive commands and shows it on the turn footer; a claim with no run flags the spinner, a destructive Bash unfolds its tool group, and an edit-without-run turn suggests running the tests.",
+  "author": {
+    "name": "Yash Gadodia"
+  },
+  "license": "MIT",
+  "homepage": "https://github.com/yash-gadodia/claude-mods",
+  "repository": "https://github.com/yash-gadodia/claude-mods",
+  "keywords": [
+    "claude-code",
+    "claude-code-plugin",
+    "claude-mod",
+    "function-hooks",
+    "receipt"
+  ]
+}

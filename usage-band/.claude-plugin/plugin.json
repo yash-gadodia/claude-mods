@@ -1,9 +1,17 @@
 {
   "name": "usage-band",
-  "version": "0.3.0",
-  "description": "A line above the prompt with the five-hour and seven-day limit windows, this session's context fill and cost, plus a nudge to clear when the window gets expensive.",
+  "version": "0.4.0",
+  "description": "A line above the prompt with the five-hour and seven-day limit windows, this session's context fill and cost, plus a nudge to clear when the window gets expensive. The footer shows the cost in Singapore dollars.",
   "author": {
     "name": "Yash Gadodia"
+  },
+  "userConfig": {
+    "sgdRate": {
+      "type": "number",
+      "title": "USD to SGD rate",
+      "description": "Multiplies the session's USD cost into the S$ label at the right of the prompt footer. /usage-band sgd off hides it.",
+      "default": 1.3
+    }
   },
   "license": "MIT",
   "homepage": "https://github.com/yash-gadodia/claude-mods",

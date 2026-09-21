@@ -13,6 +13,8 @@ import type { EngineInterface, Register, RenderElement, SessionMeasureInput } fr
 
 const NUDGE_AT = 55
 const SHOWN_KEY = 'usage-band:shown'
+const SGD_KEY = 'usage-band:sgd'
+let SGD_RATE = 1.3
 
 type Reading = {
   fiveHour?: number
@@ -31,6 +33,7 @@ let account: string | undefined
 let model: string | undefined
 let project: string | undefined
 let shown = true
+let sgdShown = true
 let nudgedAt = 0
 
 // Which login the figures belong to. $.session.usage() does not carry it, and the same terminal
@@ -121,18 +124,22 @@ const readDisabled = async ($: EngineInterface): Promise<boolean> => {
   return disabled
 }
 
-export const register: Register = (on) => {
+export const register: Register = (on, options) => {
+  const rate = Number(options.sgdRate)
+  if (Number.isFinite(rate) && rate > 0) SGD_RATE = rate
+
   on('session.start', async ($, e, next) => {
     const r = await next(e)
     if (await readDisabled($)) return r
     if ((await $.store.get(SHOWN_KEY).catch(() => undefined)) === false) shown = false
+    if ((await $.store.get(SGD_KEY).catch(() => undefined)) === false) sgdShown = false
     await readAccount($)
     await readContext($)
     await $.command
       .register({
         name: 'usage-band',
         description: 'The usage line above the prompt: limit windows, context fill, cost (usage-band)',
-        argumentHint: '[on | off]',
+        argumentHint: '[on | off | sgd on | sgd off]',
         immediate: true,
       })
       .catch((err) => $.ui.log(`usage-band: /usage-band not registered: ${err}`))
@@ -141,6 +148,12 @@ export const register: Register = (on) => {
 
   on('command.run', { command: 'usage-band' }, async ($, e) => {
     const arg = e.args.trim().toLowerCase()
+    if (arg === 'sgd on' || arg === 'sgd off') {
+      sgdShown = arg === 'sgd on'
+      await $.store.set(SGD_KEY, sgdShown).catch(() => undefined)
+      $.ui.invalidate('ui.render')
+      return { text: sgdShown ? `S$ footer label on (rate ${SGD_RATE}, set sgdRate in /config)` : 'S$ footer label off' }
+    }
     if (arg === 'off') {
       shown = false
       await $.store.set(SHOWN_KEY, false).catch(() => undefined)
@@ -154,7 +167,7 @@ export const register: Register = (on) => {
       $.ui.invalidate('ui.render')
       return { text: 'usage band on' }
     }
-    return { text: `usage-band: no such argument "${arg}" — use on or off` }
+    return { text: `usage-band: no such argument "${arg}" — use on, off, sgd on or sgd off` }
   })
 
   on('session.measure', async ($, e, next) => {
@@ -184,6 +197,13 @@ export const register: Register = (on) => {
     await readContext($)
     $.ui.invalidate('ui.render')
     return r
+  })
+
+  // The session's cost in dollars that mean something here, as a footer mode label beside `focus`.
+  on('ui.render', { component: 'SessionMode' }, async ($, e, next) => {
+    if (disabled || !shown || !sgdShown || reading?.usd === undefined) return next(e)
+    const label = `S$${(reading.usd * SGD_RATE).toFixed(2)}`
+    return next({ ...e, props: { ...e.props, modes: [...e.props.modes, label] } })
   })
 
   // A render hook that throws unmounts the module and takes the whole mod with it, so a bad frame

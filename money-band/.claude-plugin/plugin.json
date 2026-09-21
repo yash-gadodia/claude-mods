@@ -1,7 +1,7 @@
 {
   "name": "money-band",
-  "version": "0.3.0",
-  "description": "A line above the prompt with liquid assets, CPF, debt and month-to-date spend, read from a pair of SQLite databases over ssh.",
+  "version": "0.4.0",
+  "description": "A line above the prompt with liquid assets, CPF, debt and month-to-date spend, read from a pair of SQLite databases over ssh, and the emergency fund's fill in the prompt footer.",
   "author": {
     "name": "Yash Gadodia"
   },
@@ -26,6 +26,18 @@
       "description": "Path on the host to a SQLite database with a `transactions` table.",
       "default": "$HOME/.openclaw/data/finance.db",
       "required": true
+    },
+    "efAccount": {
+      "type": "string",
+      "title": "Emergency-fund account",
+      "description": "Part of the `accounts.name` the emergency fund sits in; its latest balance over efTarget is the `EF 41%` label at the right of the prompt footer.",
+      "default": "UOB One"
+    },
+    "efTarget": {
+      "type": "number",
+      "title": "Emergency-fund target (S$)",
+      "description": "The balance that counts as a full emergency fund.",
+      "default": 30000
     }
   },
   "license": "MIT",

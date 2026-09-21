@@ -2,6 +2,8 @@ import { describe, expect, mock, test, tier } from 'claude-code/testing'
 import type { Plugin } from 'claude-code/testing'
 import type { Args, CommandRunInput, On, RenderInput, SessionStartInput } from 'claude-code'
 
+import { efName } from '../hooks/register'
+
 tier('user')
 
 const MIN = 60 * 1000
@@ -21,7 +23,15 @@ const band: RenderInput<'AbovePrompt'> = {
   props: { hasSurvey: false, isWorking: false, maxRows: 20, bodyColumns: 160, scroll: { offset: 0, bodyRows: 20 }, view: {} },
 }
 
-const ANSWER = 'NW<120000|900000|60000|823000|2026-09-20>NW\nFIN<2500|31|2026-09-21|900 Freshkitchen>FIN\n'
+const ANSWER = 'NW<120000|900000|60000|823000|2026-09-20>NW\nFIN<2500|31|2026-09-21|900 Freshkitchen>FIN\nEF<12300>EF\n'
+
+const footer: RenderInput<'SessionMode'> = {
+  component: 'SessionMode',
+  surface: 'terminal',
+  requestId: 'footer',
+  viewport: { columns: 160, rows: 40, isFullscreen: false },
+  props: { modes: ['focus'] },
+}
 
 const textOf = (tree: unknown): string => {
   if (typeof tree === 'string' || typeof tree === 'number') return String(tree)
@@ -30,7 +40,7 @@ const textOf = (tree: unknown): string => {
   return textOf(Reflect.get(tree, 'children') ?? [])
 }
 
-function world(on: On) {
+function world(on: On, answer = ANSWER) {
   const runs: Args<'process.run'>[] = []
   const logs: string[] = []
   const clock = mock.clock(on, { now: 1_000_000 })
@@ -42,9 +52,10 @@ function world(on: On) {
   on('ui.invalidate', () => ({ value: undefined }))
   on('ui.status', () => ({ value: undefined }))
   on('ui.render', { component: 'AbovePrompt' }, () => ({ type: 'Text', children: [''] }))
+  on('ui.render', { component: 'SessionMode' }, ($, e) => ({ type: 'Text', children: [e.props.modes.join(' & ')] }))
   on('process.run', ($, e) => {
     runs.push(e)
-    return { value: { exitCode: 0, stdout: ANSWER, stderr: '' } }
+    return { value: { exitCode: 0, stdout: answer, stderr: '' } }
   })
   return { runs, clock, logs }
 }
@@ -122,5 +133,46 @@ describe('timer', () => {
     expect(line).toContain('liquid S$120k')
     expect(line).toContain('debt S$823k')
     expect(line).toContain('spent this month S$2.5k')
+  })
+
+  test('the footer carries the emergency fund over its target, and nothing when the account answered empty', async ($, on) => {
+    const w = world(on)
+    await $.session.start(session)
+    await w.clock.settle()
+    expect(w.runs).toHaveLength(1)
+    expect(textOf(await $.ui.render(footer))).toBe('focus & EF 41%')
+    await $.command.run(money('off'))
+    expect(textOf(await $.ui.render(footer))).toBe('focus')
+  })
+
+  test('an empty emergency-fund answer draws no footer label', async ($, on) => {
+    const w = world(on, ANSWER.replace('EF<12300>EF', 'EF<>EF'))
+    await $.session.start(session)
+    await w.clock.settle()
+    expect(textOf(await $.ui.render(band))).toContain('net S$257k')
+    expect(textOf(await $.ui.render(footer))).toBe('focus')
+  })
+
+  test('the emergency-fund query names the account without wildcards and takes the largest of several matches', async ($, on) => {
+    const w = world(on)
+    await $.session.start(session)
+    await w.clock.settle()
+    const script = w.runs[0]!.argv.at(-1)!
+    expect(script).toContain("instr(lower(a.name), lower('UOB One')) > 0")
+    expect(script).not.toContain('LIKE')
+    expect(script).toContain('ORDER BY b.balance_sgd DESC LIMIT 1')
+  })
+})
+
+describe('efAccount', () => {
+  test('a name a shell could read is refused, so it never reaches the ssh argv', async () => {
+    expect(efName('UOB One')).toBe('UOB One')
+    expect(efName(" Bob's Bank & Trust ")).toBe("Bob's Bank & Trust")
+    expect(efName('$(rm -rf ~)')).toBe(undefined)
+    expect(efName('a"b')).toBe(undefined)
+    expect(efName('`id`')).toBe(undefined)
+    expect(efName('UOB%')).toBe(undefined)
+    expect(efName('')).toBe(undefined)
+    expect(efName(3)).toBe(undefined)
   })
 })

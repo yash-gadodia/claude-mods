@@ -1,0 +1,4 @@
+{
+  "description": "tool.call tallies edits, runs, curls, reads and destructive Bash per turn (reset on turn.start); turn.complete snapshots it, flags an unverified claim and suggests a test run; ui.render rewrites TurnDuration, Spinner and ToolGroup; prompt.suggest swaps in the test nudge; /receipt turns it on or off",
+  "modules": ["./register.ts"]
+}

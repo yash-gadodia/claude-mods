@@ -14,6 +14,8 @@ import type { Register, EngineInterface } from 'claude-code'
 let HOST = 'mini'
 let NETWORTH_DB = '$HOME/.openclaw/data/networth.db'
 let FINANCE_DB = '$HOME/.openclaw/data/finance.db'
+let EF_ACCOUNT = 'UOB One'
+let EF_TARGET = 30000
 const REFRESH_MS = 15 * 60 * 1000
 const SHOWN_KEY = 'money-band:shown'
 
@@ -27,7 +29,10 @@ sqlite3 -separator '|' "$N" "WITH latest AS (SELECT account_id, MAX(snapshot_dat
 printf '>NW\\n'
 printf 'FIN<'
 sqlite3 -separator '|' "$F" "SELECT IFNULL(SUM(CASE WHEN flow = 'spend' THEN amount END), 0) || '|' || COUNT(*) || '|' || IFNULL(MAX(txn_date), '') || '|' || IFNULL((SELECT ROUND(amount) || ' ' || IFNULL(merchant, '?') FROM transactions WHERE txn_date >= date('now', 'start of month') ORDER BY amount DESC LIMIT 1), '') FROM transactions WHERE txn_date >= date('now', 'start of month');" | tr -d '\\n'
-printf '>FIN\\n'`
+printf '>FIN\\n'
+printf 'EF<'
+sqlite3 "$N" "SELECT IFNULL((SELECT b.balance_sgd FROM accounts a JOIN balances b ON b.account_id = a.id WHERE a.active = 1 AND instr(lower(a.name), lower('${EF_ACCOUNT.replace(/'/g, "''")}')) > 0 AND b.snapshot_date = (SELECT MAX(snapshot_date) FROM balances WHERE account_id = a.id) ORDER BY b.balance_sgd DESC LIMIT 1), '');" | tr -d '\\n'
+printf '>EF\\n'`
 
 type Money = {
   liquid: number
@@ -39,7 +44,16 @@ type Money = {
   txns: number
   lastTxn: string
   biggest: string
+  ef?: number
   at: number
+}
+
+// The name is spliced into a shell string that ssh runs on the host, so only characters that cannot
+// open a subshell or close the quoting are allowed; anything else keeps the default and is logged.
+export const efName = (value: unknown): string | undefined => {
+  if (typeof value !== 'string') return undefined
+  const name = value.trim()
+  return /^[\w .&'-]+$/.test(name) ? name : undefined
 }
 
 const net = (m: Money) => m.liquid + m.property + m.cpf - m.debt
@@ -50,6 +64,7 @@ let shown = true
 let timer: { cancel: () => void } | undefined
 let epoch = 0
 let refreshFailed = false
+let efRejected: string | undefined
 
 const num = (value: string | undefined) => {
   const n = Number(value)
@@ -73,6 +88,7 @@ const fetchMoney = async ($: EngineInterface): Promise<void> => {
   }
   const networth = between('NW')
   const finance = between('FIN')
+  const efRaw = between('EF')?.[0] ?? ''
   if (!networth || networth.length < 5 || !finance || finance.length < 4) {
     error = 'the databases answered nothing'
     return
@@ -88,6 +104,7 @@ const fetchMoney = async ($: EngineInterface): Promise<void> => {
     txns: Math.round(num(finance[1])),
     lastTxn: finance[2] ?? '',
     biggest: finance[3] ?? '',
+    ef: efRaw === '' ? undefined : num(efRaw),
     at: await $.clock.now(),
   }
 }
@@ -152,6 +169,11 @@ export const register: Register = (on, options) => {
   if (typeof options.host === 'string' && options.host.trim()) HOST = options.host.trim()
   if (typeof options.networthDb === 'string' && options.networthDb.trim()) NETWORTH_DB = options.networthDb.trim()
   if (typeof options.financeDb === 'string' && options.financeDb.trim()) FINANCE_DB = options.financeDb.trim()
+  const account = efName(options.efAccount)
+  if (account) EF_ACCOUNT = account
+  else if (typeof options.efAccount === 'string' && options.efAccount.trim()) efRejected = options.efAccount
+  const target = Number(options.efTarget)
+  if (Number.isFinite(target) && target > 0) EF_TARGET = target
 
   on('session.start', async ($, e, next) => {
     const r = await next(e)
@@ -165,6 +187,7 @@ export const register: Register = (on, options) => {
         immediate: true,
       })
       .catch(err => $.ui.log(`money-band: /money not registered: ${err}`))
+    if (efRejected) $.ui.log(`money-band: efAccount "${efRejected}" has characters a shell reads; using "${EF_ACCOUNT}" (letters, digits, space . & ' - only)`)
     if (!shown) return r
     // primed without blocking the session, and re-armed from each fetch from then on
     void refresh($, ++epoch)
@@ -209,6 +232,14 @@ export const register: Register = (on, options) => {
       }
     }
     return { text: `money: no such argument "${arg}" — use on, off or refresh` }
+  })
+
+  // The emergency fund's fill as a footer mode label beside `focus`: labels there are plain strings,
+  // so the figure carries no colour.
+  on('ui.render', { component: 'SessionMode' }, async ($, e, next) => {
+    if (disabled || !shown || money?.ef === undefined) return next(e)
+    const label = `EF ${Math.round((money.ef / EF_TARGET) * 100)}%`
+    return next({ ...e, props: { ...e.props, modes: [...e.props.modes, label] } })
   })
 
   // A render hook that throws unmounts the module and takes the whole mod with it, so a bad frame

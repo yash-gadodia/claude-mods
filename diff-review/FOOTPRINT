@@ -1,0 +1,3 @@
+./register.tsx calls: $.clock.after, $.command.register, $.env.get, $.fs.exists, $.fs.read, $.process.run, $.store.get, $.store.set, $.ui.close, $.ui.invalidate, $.ui.log, $.ui.open, $.ui.resolve, $.ui.toast
+./register.tsx env reads: CLAUDE_MODS_DISABLE
+./register.tsx hooks: session.start, command.run{command=diff-review}, ui.render{component=PromptHint}, prompt.submit, turn.start, ui.close{id=diff-review}, tool.call{tool=Edit|Write|NotebookEdit|Bash}, ui.press{plugin=diff-review}, ui.render{component=Pane}

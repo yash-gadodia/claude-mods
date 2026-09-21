@@ -1,5 +1,5 @@
 import { describe, expect, mock, test, tier } from 'claude-code/testing'
-import type { On, RenderInput, SessionMeasureInput, SessionStartInput, TurnCompleteInput } from 'claude-code'
+import type { CommandRunInput, On, RenderInput, SessionMeasureInput, SessionStartInput, TurnCompleteInput } from 'claude-code'
 
 import { accountIn, countdown } from '../hooks/register'
 
@@ -17,6 +17,18 @@ const band = (bodyColumns = 160): RenderInput<'AbovePrompt'> => ({
   requestId: 'band',
   viewport: { columns: bodyColumns, rows: 40, isFullscreen: false },
   props: { hasSurvey: false, isWorking: false, maxRows: 20, bodyColumns, scroll: { offset: 0, bodyRows: 20 }, view: {} },
+})
+
+const footer: RenderInput<'SessionMode'> = {
+  component: 'SessionMode',
+  surface: 'terminal',
+  requestId: 'footer',
+  viewport: { columns: 160, rows: 40, isFullscreen: false },
+  props: { modes: ['focus'] },
+}
+
+const command = (args: string): CommandRunInput => ({
+  command: 'usage-band', args, origin: { kind: 'composer' }, presentation: { isFullscreen: false, columns: 80 },
 })
 
 const measure = (over: Partial<SessionMeasureInput> = {}): SessionMeasureInput => ({
@@ -64,6 +76,7 @@ function world(on: On, env: Record<string, string> = {}) {
   on('ui.invalidate', () => ({ value: undefined }))
   on('ui.toast', ($, e) => { toasts.push(e.text); return { value: undefined } })
   on('ui.render', { component: 'AbovePrompt' }, () => ({ type: 'Text', children: [''] }))
+  on('ui.render', { component: 'SessionMode' }, ($, e) => ({ type: 'Text', children: [e.props.modes.join(' & ')] }))
   return { clock, toasts }
 }
 
@@ -143,5 +156,17 @@ describe('band', () => {
     await $.session.start(session)
     await $.session.measure(measure())
     expect(textOf(await $.ui.render(band()))).toBe('')
+  })
+
+  test('the footer carries the cost in Singapore dollars at the default rate, until sgd off', async ($, on) => {
+    world(on)
+    await $.session.start(session)
+    expect(textOf(await $.ui.render(footer))).toBe('focus')
+    await $.session.measure(measure())
+    expect(textOf(await $.ui.render(footer))).toBe('focus & S$1.95')
+    expect(await $.command.run(command('sgd off'))).toEqual({ text: 'S$ footer label off' })
+    expect(textOf(await $.ui.render(footer))).toBe('focus')
+    await $.command.run(command('sgd on'))
+    expect(textOf(await $.ui.render(footer))).toBe('focus & S$1.95')
   })
 })

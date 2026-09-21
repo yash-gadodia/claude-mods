@@ -14,12 +14,12 @@ const spinner = () => ({
   props: { word: 'Cooking', message: null, suffix: '…', mode: 'requesting' as const },
 })
 
-const duration = (requestId: string, durationMs: number) => ({
+const duration = (requestId: string, durationMs: number, word = 'Cooked') => ({
   surface: 'terminal' as const,
   component: 'TurnDuration' as const,
   requestId,
   viewport: { columns: 80, rows: 24 },
-  props: { word: 'Cooked', durationMs },
+  props: { word, durationMs },
 })
 
 const band = () => ({
@@ -42,7 +42,9 @@ function world(on: On) {
   mock.store(on, {})
   mock.env(on, {})
   const invalidations: string[] = []
+  const spoken: string[] = []
   let dropNext: string | undefined
+  on('audio.speak', ($, e) => { spoken.push(e.text); return { value: { via: 'system' as const } } })
   on('session.start', ($, e) => ({ cwd: e.cwd }))
   on('command.register', ($, e) => ({ value: { command: e.name } }))
   on('prompt.submit', ($, e) => (dropNext === undefined ? { text: e.text } : { drop: dropNext }))
@@ -57,7 +59,7 @@ function world(on: On) {
     props: {},
     children: [e.component === 'Spinner' || e.component === 'TurnDuration' ? String(e.props.word) : 'STOCK'],
   }))
-  return { clock, invalidations, drop: (reason: string) => { dropNext = reason } }
+  return { clock, invalidations, spoken, drop: (reason: string) => { dropNext = reason } }
 }
 
 const shown = async ($: Engine, input: ReturnType<typeof spinner> | ReturnType<typeof duration>) => {
@@ -74,6 +76,15 @@ const step = async ($: Engine, turnId: string) => {
 const submit = ($: Engine, text = 'hi') => $.prompt.submit({ text, wait: false, origin: { kind: 'composer' } })
 const complete = ($: Engine, turnId: string) =>
   $.turn.complete({ answer: 'done', durationMs: 65_000, isAborted: false, turnId, reason: 'answer' })
+const turn = async ($: Engine, w: ReturnType<typeof world>, turnId: string, ms: number) => {
+  await submit($)
+  await $.turn.start({ text: 'hi', turnId })
+  await step($, turnId)
+  await w.clock.advance(ms)
+  await complete($, turnId)
+}
+const voiceOn = ($: Engine) =>
+  $.command.run({ command: 'wod-timer', args: 'voice on', origin: { kind: 'composer' }, presentation: { isFullscreen: false, columns: 80 } })
 
 describe('wod-timer', () => {
   test('the spinner word counts 3, 2, 1, GO as the clock advances', async ($, on) => {
@@ -92,7 +103,7 @@ describe('wod-timer', () => {
     expect(await shown($, spinner())).toBe('Cooking')
   })
 
-  test('the split appears in TurnDuration after turn.complete, from the first request', async ($, on) => {
+  test('the footer is a whiteboard: turn number, split, AMRAP total, PR on the fastest turn only', async ($, on) => {
     const w = world(on)
     await $.session.start(SESSION)
     await submit($)
@@ -101,16 +112,55 @@ describe('wod-timer', () => {
     await step($, 't1')
     await w.clock.advance(65_000)
     await complete($, 't1')
-    expect(await shown($, duration('m1', 65_000))).toBe('Split 1:05 (avg 1:05 · longest 1:05 · 1 turns) · Cooked')
-    expect(await shown($, duration('m1', 65_000))).toBe('Split 1:05 (avg 1:05 · longest 1:05 · 1 turns) · Cooked')
+    expect(await shown($, duration('m1', 65_000))).toBe('turn 1 · 1:05 · AMRAP 1:05 · PR · Cooked')
+    expect(await shown($, duration('m1', 65_000))).toBe('turn 1 · 1:05 · AMRAP 1:05 · PR · Cooked')
     expect(await shown($, duration('m0', 10_000))).toBe('Cooked')
-    await submit($)
-    await $.turn.start({ text: 'again', turnId: 't2' })
-    await step($, 't2')
-    await w.clock.advance(30_000)
-    await complete($, 't2')
-    expect(await shown($, duration('m2', 30_000))).toBe('Split 0:30 (avg 0:47 · longest 1:05 · 2 turns) · Cooked')
-    expect(await shown($, duration('m1', 65_000))).toBe('Split 1:05 (avg 0:47 · longest 1:05 · 2 turns) · Cooked')
+    await turn($, w, 't2', 30_000)
+    expect(await shown($, duration('m2', 30_000))).toBe('turn 2 · 0:30 · AMRAP 1:35 · PR · Cooked')
+    await turn($, w, 't3', 40_000)
+    expect(await shown($, duration('m3', 40_000))).toBe('turn 3 · 0:40 · AMRAP 2:15 · Cooked')
+    expect(await shown($, duration('m1', 65_000))).toBe('turn 1 · 1:05 · AMRAP 1:05 · PR · Cooked')
+  })
+
+  test('the footer composes on the incoming word, not a hardcoded Cooked', async ($, on) => {
+    const w = world(on)
+    await $.session.start(SESSION)
+    await turn($, w, 't1', 65_000)
+    expect(await shown($, duration('m1', 65_000, 'Baked'))).toBe('turn 1 · 1:05 · AMRAP 1:05 · PR · Baked')
+  })
+
+  test('a turn under 5s is never a PR', async ($, on) => {
+    const w = world(on)
+    await $.session.start(SESSION)
+    await turn($, w, 't1', 3_000)
+    expect(await shown($, duration('m1', 3_000))).toBe('turn 1 · 0:03 · AMRAP 0:03 · Cooked')
+    await turn($, w, 't2', 8_000)
+    expect(await shown($, duration('m2', 8_000))).toBe('turn 2 · 0:08 · AMRAP 0:11 · PR · Cooked')
+  })
+
+  test('with voice on, a turn over a minute is spoken once and a short one is not', async ($, on) => {
+    const w = world(on)
+    await $.session.start(SESSION)
+    await voiceOn($)
+    await turn($, w, 't1', 70_000)
+    expect(w.spoken).toEqual(['1 minute 10, done'])
+    await turn($, w, 't2', 20_000)
+    expect(w.spoken).toEqual(['1 minute 10, done'])
+  })
+
+  test('with voice off (the default) nothing is spoken', async ($, on) => {
+    const w = world(on)
+    await $.session.start(SESSION)
+    await turn($, w, 't1', 70_000)
+    expect(w.spoken).toEqual([])
+  })
+
+  test('the band keeps avg and longest', async ($, on) => {
+    const w = world(on)
+    await $.session.start(SESSION)
+    await turn($, w, 't1', 65_000)
+    await turn($, w, 't2', 30_000)
+    expect(JSON.stringify(await $.ui.render(band()))).toMatch(/avg 0:47 · longest 1:05 · 2 turns/)
   })
 
   test('the band runs a clock from the request and idles with the split', async ($, on) => {

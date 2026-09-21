@@ -29,6 +29,18 @@
       "description": "Denies a merge unless the latest human message says merge; ship, push and deploy do not count."
     },
     {
+      "name": "receipt",
+      "source": "./receipt",
+      "version": "0.1.0",
+      "description": "A receipt in the turn footer: edits, runs and curls, a warning when edits ran nothing, unfolded destructive commands, and a spinner that names an unverified claim."
+    },
+    {
+      "name": "diff-review",
+      "source": "./diff-review",
+      "version": "0.1.0",
+      "description": "A docked pane with each edited file's hunk and keep or revert buttons that act without a model turn."
+    },
+    {
       "name": "money-band",
       "source": "./money-band",
       "description": "A money line above the prompt, read from SQLite databases over ssh.",
