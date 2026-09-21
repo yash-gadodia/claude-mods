@@ -1,24 +1,31 @@
 /* @jsx h */
 import type { EngineInterface, Register } from 'claude-code'
 
-// A gym timer for each turn. Submitting a prompt starts "3 · 2 · 1 · GO" (450ms a beat), then
-// the clock runs a second at a time until the turn lands and the split is written next to the
-// session's average and longest. The timer only ticks while a turn is running.
+// A gym timer for each turn. Submitting a prompt starts "3 · 2 · 1 · GO" (450ms a beat) in the
+// band and in the spinner's word, then the clock runs a second at a time from the turn's first
+// model request until the turn lands, when the split is written into the band and into the
+// "Cooked for 1m 5s" line beside the session's average and longest. Tickers are started only by
+// prompt.submit and turn.start and stopped by turn.complete and turn.abort, never by a render.
 
 const BEAT_MS = 450
+const MIN_REDRAW_MS = 100
 const SHOWN_KEY = 'wod-timer:shown'
 
 let shown = true
 let phase: 'idle' | 'count' | 'run' = 'idle'
 let beat = 0
 let startedAt = 0
+let requestAt: number | undefined
 let last: number | undefined
+let pending: number | undefined
 let splits: number[] = []
+const rowSplit = new Map<string, number>()
+let lastDraw = -Infinity
 let tick: { cancel: () => void } | undefined
 
 const COUNT = ['3', '2', '1', 'GO']
 
-const clock = (ms: number) => {
+export const clock = (ms: number) => {
   const s = Math.max(0, Math.floor(ms / 1000))
   const m = Math.floor(s / 60)
   return `${m}:${String(s % 60).padStart(2, '0')}`
@@ -29,21 +36,38 @@ const stop = () => {
   tick = undefined
 }
 
-function startRun($: EngineInterface) {
-  phase = 'run'
-  stop()
-  tick = $.clock.every(1000, () => $.ui.invalidate('ui.render'))
+async function redraw($: EngineInterface) {
+  const now = await $.clock.now()
+  if (now - lastDraw < MIN_REDRAW_MS) return
+  lastDraw = now
   $.ui.invalidate('ui.render')
 }
 
-function land($: EngineInterface, counts: boolean) {
+const origin = () => requestAt ?? startedAt
+
+function startRun($: EngineInterface) {
+  phase = 'run'
+  stop()
+  tick = $.clock.every(1000, () => void redraw($))
+  void redraw($)
+}
+
+async function land($: EngineInterface, counts: boolean) {
   stop()
   if (phase !== 'idle' && counts) {
-    last = Date.now() - startedAt
+    last = (await $.clock.now()) - origin()
+    pending = last
     splits.push(last)
   }
   phase = 'idle'
-  $.ui.invalidate('ui.render')
+  requestAt = undefined
+  await redraw($)
+}
+
+const summary = () => {
+  const avg = splits.reduce((a, b) => a + b, 0) / splits.length
+  const longest = Math.max(...splits)
+  return `avg ${clock(avg)} · longest ${clock(longest)} · ${splits.length} turns`
 }
 
 // The first thing anyone does when a mod misbehaves is try to turn it off. `CLAUDE_MODS_DISABLE=all`,
@@ -94,23 +118,27 @@ export const register: Register = (on) => {
   })
 
   on('prompt.submit', async ($, e, next) => {
-    if (disabled) return next(e)
-    if (shown) {
-      startedAt = Date.now()
-      phase = 'count'
-      beat = 0
+    if (disabled || !shown || e.turnId !== undefined || e.text.startsWith('/')) return next(e)
+    startedAt = await $.clock.now()
+    requestAt = undefined
+    phase = 'count'
+    beat = 0
+    stop()
+    tick = $.clock.every(BEAT_MS, () => {
+      beat += 1
+      if (beat >= COUNT.length) {
+        if (phase === 'count') startRun($)
+        return
+      }
+      void redraw($)
+    })
+    await redraw($)
+    const r = await next(e)
+    if (r.drop !== undefined) {
       stop()
-      tick = $.clock.every(BEAT_MS, () => {
-        beat += 1
-        if (beat >= COUNT.length) {
-          if (phase === 'count') startRun($)
-          return
-        }
-        $.ui.invalidate('ui.render')
-      })
-      $.ui.invalidate('ui.render')
+      phase = 'idle'
     }
-    return next(e)
+    return r
   })
 
   on('turn.start', async ($, e, next) => {
@@ -118,24 +146,47 @@ export const register: Register = (on) => {
     // A turn the timer did not see submitted (a plugin's own prompt, a resumed session) still
     // gets a clock, but never a countdown mid-run.
     if (shown && phase === 'idle') {
-      startedAt = Date.now()
+      startedAt = await $.clock.now()
+      requestAt = undefined
       startRun($)
     }
     return next(e)
   })
 
+  on('turn.step', async function* ($, e, next) {
+    if (!disabled && e.agentId === undefined && requestAt === undefined) requestAt = await $.clock.now()
+    return yield* next(e)
+  })
+
   on('turn.complete', async ($, e, next) => {
     if (disabled) return next(e)
     const r = await next(e)
-    land($, true)
+    if (e.agentId === undefined) await land($, true)
     return r
   })
 
   on('turn.abort', async ($, e, next) => {
     if (disabled) return next(e)
     const r = await next(e)
-    land($, false)
+    await land($, false)
     return r
+  })
+
+  on('ui.render', { component: 'Spinner' }, async ($, e, next) => {
+    if (disabled || !shown || e.surface !== 'terminal' || phase !== 'count') return next(e)
+    return next({ ...e, props: { ...e.props, word: COUNT[Math.min(beat, COUNT.length - 1)]! } })
+  })
+
+  on('ui.render', { component: 'TurnDuration' }, async ($, e, next) => {
+    if (disabled || !shown || e.surface !== 'terminal') return next(e)
+    let split = rowSplit.get(e.requestId)
+    if (split === undefined && pending !== undefined) {
+      split = pending
+      pending = undefined
+      rowSplit.set(e.requestId, split)
+    }
+    if (split === undefined) return next(e)
+    return next({ ...e, props: { ...e.props, word: `Split ${clock(split)} (${summary()}) · ${e.props.word}` } })
   })
 
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
@@ -144,6 +195,7 @@ export const register: Register = (on) => {
     try {
       const { Box, Text } = await $.ui.resolve(e)
       const rest = await next(e)
+      const now = await $.clock.now()
       let line
       if (phase === 'count') {
         const word = COUNT[Math.min(beat, COUNT.length - 1)]!
@@ -161,19 +213,17 @@ export const register: Register = (on) => {
         line = (
           <Text>
             <Text dimColor>timer  </Text>
-            <Text bold color="green">{clock(Date.now() - startedAt)}</Text>
+            <Text bold color="green">{clock(now - origin())}</Text>
             <Text dimColor> running</Text>
           </Text>
         )
       } else if (last !== undefined) {
-        const avg = splits.reduce((a, b) => a + b, 0) / splits.length
-        const longest = Math.max(...splits)
         line = (
           <Text>
             <Text dimColor>timer  </Text>
             <Text dimColor>split </Text>
             <Text bold>{clock(last)}</Text>
-            <Text dimColor>{` · avg ${clock(avg)} · longest ${clock(longest)} · ${splits.length} turns`}</Text>
+            <Text dimColor>{` · ${summary()}`}</Text>
           </Text>
         )
       } else {

@@ -1,6 +1,6 @@
 {
   "name": "money-band",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "A line above the prompt with liquid assets, CPF, debt and month-to-date spend, read from a pair of SQLite databases over ssh.",
   "author": {
     "name": "Yash Gadodia"
@@ -27,5 +27,15 @@
       "default": "$HOME/.openclaw/data/finance.db",
       "required": true
     }
-  }
+  },
+  "license": "MIT",
+  "homepage": "https://github.com/yash-gadodia/claude-mods",
+  "repository": "https://github.com/yash-gadodia/claude-mods",
+  "keywords": [
+    "claude-code",
+    "claude-code-plugin",
+    "claude-mod",
+    "function-hooks",
+    "money-band"
+  ]
 }

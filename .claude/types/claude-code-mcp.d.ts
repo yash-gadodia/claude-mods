@@ -6,6 +6,105 @@
 export {}
 declare module 'claude-code' {
   interface McpToolInputs {
+    /** Create a doc, or apply several operations to one doc atomically. */
+    mcp__claude_ai_Claude_Docs__batch: {
+      batch?: unknown[]
+      container?: {
+        create?: {}
+        id?: string
+        kind: string
+      }
+      opId?: string
+      verbose?: boolean
+    }
+    /** Create one object in a doc: a tab, its contents, a comment, an upload record. */
+    mcp__claude_ai_Claude_Docs__create: {
+      artifact?: string
+      container?: {
+        id: string
+        kind: string
+        version?: string
+      }
+      engine?: string
+      object: "file" | "node" | "utterance" | "enum" | "blob"
+      opId?: string
+      payload: {} | string
+      verbose?: boolean
+    }
+    /** Delete one object from a doc: a tab, its contents, a comment, an upload record. A doc keeps at least one tab (deleting its last refuses `last_tab`): to start over, rewrite that tab's contents with `update`, never delete and recreate the tab. */
+    mcp__claude_ai_Claude_Docs__delete: {
+      container?: {
+        id: string
+        kind: string
+        version?: string
+      }
+      engine?: string
+      opId?: string
+      payload?: {} | string
+      ref: {
+        id: string
+        object: "project" | "file" | "node" | "utterance"
+      }
+      verbose?: boolean
+    }
+    /** Export one tab inline as base64: pdf, docx, html, text, markdown or notion (Notion-flavored markdown, what notion-create-pages takes). To just keep the file in the doc's files, create a blob {from: {object: "file", id}, format} instead (no large result). */
+    mcp__claude_ai_Claude_Docs__export: {
+      container: {
+        id: string
+        kind: string
+        version?: string
+      }
+      file: string
+      format: "markdown" | "text" | "html" | "docx" | "pdf" | "notion"
+      maxBytes?: number
+      paper?: "letter" | "a4"
+    }
+    /** Docs guides: topic.instructions = how to create and edit docs. Also topic.<name>, refusal.<code>. No docs skill or instructions loaded → ["topic.instructions"] first; after a doc's birth → ["topic.index"]. */
+    mcp__claude_ai_Claude_Docs__guide: {
+      /** topic.<name> (instructions, index, editing, tabs, comments, charts, chart-definition, uploads, skill) or refusal.<code>; several per call is fine. */
+      items?: unknown[]
+    }
+    /** List a tab's or a doc's comment history (threads, replies, resolves). */
+    mcp__claude_ai_Claude_Docs__query: {
+      container?: {
+        id: string
+        kind: string
+        version?: string
+      }
+      object?: "utterance"
+      payload?: {} | string
+    }
+    /** Read a doc (lists its tabs), a tab's contents, or a comment. A claude.ai/[code/]artifact/[<title>-]<id> link → `ref {"object":"project","id":"<id>"}` first; reads inside it take `container {"kind":"project","id":"<id>"}`. */
+    mcp__claude_ai_Claude_Docs__read: {
+      container?: {
+        id: string
+        kind: string
+        version?: string
+      }
+      engine?: string
+      payload?: {} | string
+      ref: {
+        id: string
+        object: "project" | "file" | "node" | "utterance" | "enum" | "blob"
+      }
+    }
+    /** Edit a tab's contents, rename a doc or tab, or change a stored value. */
+    mcp__claude_ai_Claude_Docs__update: {
+      answering?: string
+      container?: {
+        id: string
+        kind: string
+        version?: string
+      }
+      engine?: string
+      opId?: string
+      payload: {} | string
+      ref: {
+        id: string
+        object: "project" | "file" | "node" | "utterance" | "enum"
+      }
+      verbose?: boolean
+    }
     /** Prefer `trash_message` or `mark_message_spam` instead. Adds a sensitive label (Trash or Spam) to a single message in the authenticated user's Gmail account. Use `apply_sensitive_message_label` when applying Trash or Spam to exactly 1 message. To apply sensitive labels to multiple messages, use `batch_apply_sensitive_message_labels` instead. If the message belongs to a thread that should be labeled as a whole, prefer `trash_thread` or `mark_thread_spam`. To find the message ID, use tools like `search_threads` or `get_thread`. To find the draft message ID, use tools like `list_drafts`. */
     mcp__claude_ai_Gmail__apply_sensitive_message_label: {
       /** Required. The sensitive label option to add. */
@@ -20,17 +119,17 @@ declare module 'claude-code' {
       /** Required. The ID of the thread to add the label to. */
       threadId: string
     }
-    /** Creates a new draft email in the authenticated user's Gmail account. This tool takes recipient addresses (`to`, `cc`, `bcc`), a `subject`, and body content as inputs. Plain text body content can be provided in `body`, and rich-text HTML content can be provided in `htmlBody` (if both are provided, `body` serves as the plain-text alternative). If the draft is created as a reply to an existing message, the ID of the original message should be passed to the tool in the `replyToMessageId` field. Returns a Draft object with the `id` and `threadId` fields populated. */
+    /** Creates a new draft email in the authenticated user's Gmail account. This tool takes recipient addresses (`to`, `cc`, `bcc`), a `subject`, and body content as inputs. Plain text body content can be provided in `body` (do NOT format `body` with Markdown), and rich-text HTML content can be provided in `htmlBody` (use valid HTML tags for formatting; if both are provided, `body` serves as the plain-text alternative). If the draft is created as a reply to an existing message, the ID of the original message should be passed to the tool in the `replyToMessageId` field. Returns a Draft object with the `id` and `threadId` fields populated. */
     mcp__claude_ai_Gmail__create_draft: {
       /** Optional. The attachments to include in the email. The combined size of attachments in the message cannot exceed 25MB. If you need to send files larger than 25MB, upload the file to Drive first and then insert the Drive link into `body` or `html_body`. */
       attachments?: Array<unknown /* $ref #/$defs/Attachment */>
       /** Optional. The blind carbon copy recipients of the email draft. Each string MUST be a valid plain email address (e.g., "user@example.com"). */
       bcc?: string[]
-      /** Optional. The main body content of the email draft. If `html_body` is also provided, this field is treated as the plain-text alternative. */
+      /** Optional. The plain text body content of the email draft. Do NOT format this field with Markdown (such as headers `#`, bold `**`, bullet points `*`, or tables `|`). If formatted rich text is desired, use `html_body` instead. If `html_body` is also provided, this field is treated as the plain-text alternative. */
       body?: string
       /** Optional. The carbon copy recipients of the email draft. Each string MUST be a valid plain email address (e.g., "user@example.com"). */
       cc?: string[]
-      /** The HTML content of the email draft. If provided, this will be used as the rich-text version of the email. */
+      /** Optional. The HTML content of the email draft. If provided, this will be used as the rich-text version of the email. Use this field (with valid HTML tags such as ` `, ` */
       htmlBody?: string
       /** Optional. The ID of the message to reply to. If provided, this will be used as the reply-to message ID for the email draft, and the `body` and `html_body` will be appended to the original message body. */
       replyToMessageId?: string
@@ -54,20 +153,25 @@ declare module 'claude-code' {
       /** Optional. The visibility of messages with this label in the message list in the Gmail web interface. Defaults to `SHOW`. */
       messageListVisibility?: "MESSAGE_LIST_VISIBILITY_UNSPECIFIED" | "SHOW" | "HIDE"
     }
+    /** Deletes a draft email in the authenticated user's Gmail account using its draft ID. */
+    mcp__claude_ai_Gmail__delete_draft: {
+      /** Required. The unique identifier of the draft to delete. */
+      draftId: string
+    }
     /** Deletes a label in the authenticated user's Gmail account. */
     mcp__claude_ai_Gmail__delete_label: {
       /** Required. The ID of the label to delete. */
       labelId: string
     }
-    /** Forwards a specific email message in the authenticated user's Gmail account. Returns a Message object with the `id`, `threadId`, and `labelIds` fields populated. */
+    /** Forwards a specific email message in the authenticated user's Gmail account. Optional comments can be added before the forwarded message using `forwardText` for plain text (do NOT format with Markdown) or `htmlBody` for rich HTML. Returns a Message object with the `id`, `threadId`, and `labelIds` fields populated. */
     mcp__claude_ai_Gmail__forward: {
       /** Optional. The blind carbon copy recipients of the email. Each string MUST be a valid plain email address (e.g., "user@example.com"). */
       bcc?: string[]
       /** Optional. The carbon copy recipients of the email. Each string MUST be a valid plain email address (e.g., "user@example.com"). */
       cc?: string[]
-      /** Optional. Comments to add before the forwarded message. */
+      /** Optional. Plain text comments to add before the forwarded message. Do NOT format this field with Markdown (such as headers `#`, bold `**`, bullet points `*`, or tables `|`). If formatted rich text is desired, use `html_body` instead. If `html_body` is also provided, this field is treated as the plain-text alternative. */
       forwardText?: string
-      /** Optional. The HTML content of the comments to add before the forwarded message. If provided, this will be used as the rich-text version of the forward comments. */
+      /** Optional. The HTML content of the comments to add before the forwarded message. If provided, this will be used as the rich-text version of the forward comments. Use this field (with valid HTML tags such as ` `, ` */
       htmlBody?: string
       /** Required. The unique identifier of the message to forward. A specific `message_id` is required to forward, which can be obtained by retrieving the thread via `get_thread`. */
       messageId: string
@@ -132,15 +236,15 @@ declare module 'claude-code' {
       /** Required. The ID of the thread to mark as Spam. */
       threadId: string
     }
-    /** Replies to a specific email message in the authenticated user's Gmail account. Supports replying to only the sender or to all recipients (reply-all) via the `replyAll` parameter. Requires the `messageId` of the message to reply to. If `htmlBody` is not provided, then `body` is required. If `body` is not provided, then `htmlBody` is required. To reply to an existing thread, retrieve the thread via `get_thread` first to find the `messageId` of the latest message in that thread. Returns a Message object with the `id`, `threadId`, and `labelIds` fields populated. */
+    /** Replies to a specific email message in the authenticated user's Gmail account. Supports replying to only the sender or to all recipients (reply-all) via the `replyAll` parameter. Requires the `messageId` of the message to reply to. Plain text body content can be provided in `body` (do NOT format `body` with Markdown), and rich-text HTML content in `htmlBody` (use valid HTML tags). If `htmlBody` is not provided, then `body` is required. If `body` is not provided, then `htmlBody` is required. To reply to an existing thread, retrieve the thread via `get_thread` first to find the `messageId` of the latest message in that thread. Returns a Message object with the `id`, `threadId`, and `labelIds` fields populated. */
     mcp__claude_ai_Gmail__reply: {
       /** Optional. The blind carbon copy recipients of the email reply. Each string MUST be a valid plain email address (e.g., "user@example.com"). */
       bcc?: string[]
-      /** Optional. The main body content of the reply in plain text. If `html_body` is also provided, this field is treated as the plain-text alternative. If `html_body` is not provided, then `body` is required. */
+      /** Optional. The plain text body content of the reply. Do NOT format this field with Markdown (such as headers `#`, bold `**`, bullet points `*`, or tables `|`). If formatted rich text is desired, use `html_body` instead. If `html_body` is also provided, this field is treated as the plain-text alternative. If `html_body` is not provided, then `body` is required. */
       body?: string
       /** Optional. The carbon copy recipients of the email reply. If specified, overrides the default CC recipients. Each string MUST be a valid plain email address (e.g., "user@example.com"). */
       cc?: string[]
-      /** Optional. The HTML content of the reply. If provided, this will be used as the rich-text version of the email. If `body` is not provided, then `html_body` is required. */
+      /** Optional. The HTML content of the reply. If provided, this will be used as the rich-text version of the email. Use this field (with valid HTML tags such as ` `, ` */
       htmlBody?: string
       /** Required. The unique identifier of the message to reply to. If you want to reply to an existing thread, first retrieve the thread via `get_thread` to find the `message_id` of the last message in the thread. Pass that `message_id` here to ensure proper threading. */
       messageId: string
@@ -162,19 +266,19 @@ declare module 'claude-code' {
       /** Optional. Controls the fields populated for threads in the thread list. Defaults to `THREAD_VIEW_MINIMAL`. `THREAD_VIEW_MINIMAL` returns `id`, `snippet`, `subject`, `sender`, `to_recipients`, `cc_recipients`, `bcc_recipients`, `date`, `label_ids`. `THREAD_VIEW_METADATA_ONLY` returns `id`, `sender`, `to_recipients`, `cc_recipients`, `bcc_recipients`, `date`, `label_ids`. */
       view?: "THREAD_VIEW_UNSPECIFIED" | "THREAD_VIEW_METADATA_ONLY" | "THREAD_VIEW_MINIMAL"
     }
-    /** Sends a new email message immediately from the authenticated user's Gmail account. To send an existing draft message, provide the `draftId`. To send a new message, provide recipients in `to`, `cc`, or `bcc`, a `subject`, and message content in `body` or `htmlBody`. To thread the message under an existing thread or conversation, provide `replyThreadId` (preferred for send-only clients) or `replyToMessageId`. If sending a new message, attachments can be included via the `attachments` field, but the combined size cannot exceed 25MB. The email can be a previously created draft (identified by `draftId`) or a new email with provided recipients `to`, `cc`, and `bcc`, `subject` and `body` content (including plain text and HTML). Returns a Message object with the `id`, `threadId`, and `labelIds` fields populated. */
+    /** Sends a new email message immediately from the authenticated user's Gmail account. To send an existing draft message, provide the `draftId`. To send a new message, provide recipients in `to`, `cc`, or `bcc`, a `subject`, and message content in `body` or `htmlBody` (plain text in `body`, rich HTML in `htmlBody`; do NOT format `body` with Markdown). To thread the message under an existing thread or conversation, provide `replyThreadId` (preferred for send-only clients) or `replyToMessageId`. If sending a new message, attachments can be included via the `attachments` field, but the combined size cannot exceed 25MB. Returns a Message object with the `id`, `threadId`, and `labelIds` fields populated. */
     mcp__claude_ai_Gmail__send_message: {
       /** Optional. The attachments to include in the email. The combined size of attachments in the message cannot exceed 25MB. If you need to send files larger than 25MB, upload the file to Drive first and then insert the Drive link into `body` or `html_body`. */
       attachments?: Array<unknown /* $ref #/$defs/Attachment */>
       /** Optional. The blind carbon copy recipients of the email. Each string MUST be a valid plain email address (e.g., "user@example.com"). */
       bcc?: string[]
-      /** Optional. The main body content of the email. If `html_body` is also provided, this field is treated as the plain-text alternative. */
+      /** Optional. The plain text body content of the email. Do NOT format this field with Markdown (such as headers `#`, bold `**`, bullet points `*`, or tables `|`). If formatted rich text is desired, use `html_body` instead. If `html_body` is also provided, this field is treated as the plain-text alternative. */
       body?: string
       /** Optional. The carbon copy recipients of the email. Each string MUST be a valid plain email address (e.g., "user@example.com"). */
       cc?: string[]
       /** Optional. The unique identifier of an existing draft to send. If provided, the other fields (`to`, `cc`, `bcc`, `subject`, `body`, `html_body`) are ignored, and the specified draft is sent as is. */
       draftId?: string
-      /** Optional. The HTML content of the email. If provided, this will be used as the rich-text version of the email. */
+      /** Optional. The HTML content of the email. If provided, this will be used as the rich-text version of the email. Use this field (with valid HTML tags such as ` `, ` */
       htmlBody?: string
       /** Optional. The unique identifier of the thread to send this message in. If provided, the sent message will be threaded under the specified thread. Compatible with all scopes including send-only (gmail.send). */
       replyThreadId?: string
@@ -229,19 +333,19 @@ declare module 'claude-code' {
       /** Required. The ID of the thread to remove from Trash. */
       threadId: string
     }
-    /** Updates an existing draft email in the authenticated user's Gmail account. This operation supports merge semantics: fields provided in the request (non-empty) will overwrite the corresponding fields in the draft, while omitted (or empty) fields will preserve their existing values. WARNING: Attachments are NOT merged. If the draft contains attachments, they will be removed unless they are explicitly re-provided in the `attachments` field of this request. Returns a Draft object with the `id` and `threadId` fields populated. */
+    /** Updates an existing draft email in the authenticated user's Gmail account. This operation supports merge semantics: fields provided in the request (non-empty) will overwrite the corresponding fields in the draft, while omitted (or empty) fields will preserve their existing values. Plain text body content can be provided in `body` (do NOT format `body` with Markdown), and rich-text HTML content can be provided in `htmlBody` (use valid HTML tags for formatting; if only one is provided, the other is cleared to keep content in sync). WARNING: Attachments are NOT merged. If the draft contains attachments, they will be removed unless they are explicitly re-provided in the `attachments` field of this request. Returns a Draft object with the `id` and `threadId` fields populated. */
     mcp__claude_ai_Gmail__update_draft: {
       /** Optional. The attachments to include in the email. The combined size of attachments in the message cannot exceed 25MB. If you need to send files larger than 25MB, upload the file to Drive first and then insert the Drive link into `body` or `html_body`. If omitted or empty, any existing attachments on the draft will be removed. */
       attachments?: Array<unknown /* $ref #/$defs/Attachment */>
       /** Optional. The blind carbon copy recipients of the email draft. Each string MUST be a valid plain email address (e.g., "user@example.com"). If omitted or empty, the existing recipients are preserved. */
       bcc?: string[]
-      /** Optional. The main body content of the email draft. If `html_body` is also provided, this field is treated as the plain-text alternative. If both `body` and `html_body` are omitted or empty, the existing body is preserved. If `body` is provided but `html_body` is omitted, the body will be updated to plain text and the existing HTML body will be cleared. */
+      /** Optional. The plain text body content of the email draft. Do NOT format this field with Markdown (such as headers `#`, bold `**`, bullet points `*`, or tables `|`). If formatted rich text is desired, use `html_body` instead. If `html_body` is also provided, this field is treated as the plain-text alternative. If both `body` and `html_body` are omitted or empty, the existing body is preserved. If `body` is provided but `html_body` is omitted, the body will be updated to plain text and the existing HTML body will be cleared. */
       body?: string
       /** Optional. The carbon copy recipients of the email draft. Each string MUST be a valid plain email address (e.g., "user@example.com"). If omitted or empty, the existing recipients are preserved. */
       cc?: string[]
       /** Required. The unique identifier of the draft to update. */
       draftId: string
-      /** Optional. The HTML content of the email draft. If provided, this will be used as the rich-text version of the email. If both `body` and `html_body` are omitted or empty, the existing body is preserved. If `html_body` is provided but `body` is omitted, the body will be updated to HTML and the existing plain text body will be cleared. */
+      /** Optional. The HTML content of the email draft. If provided, this will be used as the rich-text version of the email. Use this field (with valid HTML tags such as ` `, ` */
       htmlBody?: string
       /** Optional. The subject line of the email. If omitted or empty, the existing subject is preserved. */
       subject?: string
@@ -483,6 +587,8 @@ declare module 'claude-code' {
       exportMimeType?: string
       /** Required. The ID of the file to retrieve. */
       fileId: string
+      /** Optional. The revision id for the version of the file to download. If not specified, the latest revision will be downloaded. */
+      revisionId?: string
     }
     /** Call this tool to find general metadata about a user's Drive file. Context window token management can be tuned via `snippetVerbosity` (default is `SnippetVerbosity.DETAILED`) or if only metadata is needed, use `excludeContentSnippets`. If the file is not found, try using other tools like `search_files` to find the file the user is requesting. */
     mcp__claude_ai_Google_Drive__get_file_metadata: {
@@ -554,7 +660,7 @@ declare module 'claude-code' {
       /** The updated title of the file. If provided, must not be empty. */
       title?: string
     }
-    /** Search Mobbin for multi-step user flows (e.g. onboarding, checkout) using natural language. Returns evenly-spaced preview images inline along with metadata for each flow, including per-screen previews. Examine the returned images to understand each flow's actual content — do not describe screens based solely on metadata. On hosts that support MCP Apps, also renders an interactive gallery of the results. */
+    /** Search Mobbin for multi-step user flows (e.g. onboarding, checkout) using natural language. Returns evenly-spaced preview images inline along with metadata for each flow, including per-screen previews. Examine the returned images to understand each flow's actual content — do not describe screens based solely on metadata. Inline images are low-res previews for you to read, not for the user. Each result's `image_url` is the high-resolution image. Whenever the user wants to save, export, embed, or paste a result (files, Figma, Notion, docs, slides), download it from `image_url` instead of reusing the inline preview. Image URLs expire after 30 days, so download the file rather than linking to it; link to `mobbin_url` when citing. On hosts that support MCP Apps, also renders an interactive gallery of the results. */
     mcp__mobbin__search_flows: {
       /** Describe one user journey in plain language — the steps and what you'd see along the way. Be specific; detail helps. Good: "onboarding with personalization steps", "checkout with payment method selection". Avoid: combining multiple flows (search separately), negations, vague style words, disconnected keyword lists. Name a specific app to filter results to it (e.g. "Duolingo onboarding"). Do not include platform (ios/web) — use the dedicated parameter. */
       query: string
@@ -569,7 +675,7 @@ declare module 'claude-code' {
       /** One short sentence summarizing the user's overall task. Helps return more relevant results. Write it in English even when the conversation is in another language. MUST be the same across all calls for the same task. Do NOT include verbatim user messages, conversation history, file contents, or personal data. */
       task_intent?: string
     }
-    /** Search Mobbin for UI screens using natural language. Returns matching screens with inline images and metadata. Examine the returned images to understand each screen's actual content — do not describe or summarize screens based solely on metadata. Each screen has a `mobbin_url` — the canonical Mobbin link for that screen. When you present results to the user, ALWAYS cite each screen you mention as a markdown link to its `mobbin_url` so the user can open it on Mobbin. On hosts that support MCP Apps, also renders an interactive gallery of the results. */
+    /** Search Mobbin for UI screens using natural language. Returns matching screens with inline images and metadata. Examine the returned images to understand each screen's actual content — do not describe or summarize screens based solely on metadata. Each screen has a `mobbin_url` — the canonical Mobbin link for that screen. When you present results to the user, ALWAYS cite each screen you mention as a markdown link to its `mobbin_url` so the user can open it on Mobbin. Inline images are low-res previews for you to read, not for the user. Each result's `image_url` is the high-resolution image. Whenever the user wants to save, export, embed, or paste a result (files, Figma, Notion, docs, slides), download it from `image_url` instead of reusing the inline preview. Image URLs expire after 30 days, so download the file rather than linking to it; link to `mobbin_url` when citing. On hosts that support MCP Apps, also renders an interactive gallery of the results. */
     mcp__mobbin__search_screens: {
       /** Describe one screen in plain language — the UI elements you'd see and how they relate. Be specific; detail helps. Good: "login screen with biometric authentication", "checkout page with promo code field and Apple Pay button". Avoid: combining multiple screens/intents (search separately), negations ("without ads"), vague style words ("modern", "clean"), disconnected keyword lists. Name a specific app to filter results to it (e.g. "Spotify now-playing screen"). Do not include platform (ios/web) — use the dedicated parameter. */
       query: string
@@ -586,7 +692,7 @@ declare module 'claude-code' {
       /** One short sentence summarizing the user's overall task. Helps return more relevant results. Write it in English even when the conversation is in another language. MUST be the same across all calls for the same task. Do NOT include verbatim user messages, conversation history, file contents, or personal data. */
       task_intent?: string
     }
-    /** Search Mobbin for website sections (e.g. About, Pricing, Footer) using natural language. Returns section images inline along with metadata. Examine the returned images to understand each section's actual content — do not describe or summarize sections based solely on metadata. On hosts that support MCP Apps, also renders an interactive gallery of the results. */
+    /** Search Mobbin for website sections (e.g. About, Pricing, Footer) using natural language. Returns section images inline along with metadata. Examine the returned images to understand each section's actual content — do not describe or summarize sections based solely on metadata. Inline images are low-res previews for you to read, not for the user. Each result's `image_url` is the high-resolution image. Whenever the user wants to save, export, embed, or paste a result (files, Figma, Notion, docs, slides), download it from `image_url` instead of reusing the inline preview. Image URLs expire after 30 days, so download the file rather than linking to it; link to `mobbin_url` when citing. On hosts that support MCP Apps, also renders an interactive gallery of the results. */
     mcp__mobbin__search_sections: {
       /** Describe one website section in plain language — the content and elements you'd see. Be specific; detail helps. Good: "pricing page with plan comparison table", "hero section with signup form". Avoid: combining multiple sections (search separately), negations, vague style words, disconnected keyword lists. */
       query: string

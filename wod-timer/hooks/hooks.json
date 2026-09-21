@@ -1,4 +1,4 @@
 {
-  "description": "prompt.submit starts a 3-2-1-GO countdown drawn by ui.render on AbovePrompt, then a 1s clock runs until turn.complete records the split",
+  "description": "prompt.submit starts a 3-2-1-GO countdown drawn in the AbovePrompt band and as the Spinner word; turn.step stamps the first model request, a 1s clock runs from it, and turn.complete records the split into the band and the TurnDuration line",
   "modules": ["./register.tsx"]
 }

@@ -1,8 +1,18 @@
 {
   "name": "wod-band",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "A pixel-art Ragtag athlete above the prompt who does a rep every turn: the session is an AMRAP of thrusters, burpees and pull-ups.",
   "author": {
     "name": "Yash Gadodia"
-  }
+  },
+  "license": "MIT",
+  "homepage": "https://github.com/yash-gadodia/claude-mods",
+  "repository": "https://github.com/yash-gadodia/claude-mods",
+  "keywords": [
+    "claude-code",
+    "claude-code-plugin",
+    "claude-mod",
+    "function-hooks",
+    "wod-band"
+  ]
 }

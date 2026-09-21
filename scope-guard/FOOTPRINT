@@ -1,0 +1,3 @@
+./register.ts calls: $.clock.after, $.command.register, $.env.get, $.model.complete, $.session.cwd, $.session.messages, $.store.get, $.store.set, $.turn.abort, $.ui.ask, $.ui.invalidate, $.ui.log, $.ui.status
+./register.ts env reads: CLAUDE_MODS_DISABLE
+./register.ts hooks: session.start, prompt.submit, command.run{command=scope}, prompt.context, turn.start, tool.check{tool=Edit|Write|NotebookEdit}, tool.check{tool=Bash}

@@ -89,13 +89,19 @@ const quote = (script: string) => `'${script.replace(/'/g, `'\\''`)}'`
 const remoteCommand = (command: string, remoteRoot: string) =>
   `ssh ${HOST} ${quote(`${REMOTE_PATH}; cd ${quote(remoteRoot)} && ${command}`)}`
 
+// ssh itself failing (255, or a process that never started) is not an answer about the mini; it
+// throws, and the hook's catch handler decides by mode instead of quietly running here.
+const ssh = async ($: EngineInterface, args: string[], timeoutMs: number) => {
+  const r = await $.process.run(['ssh', ...args], { timeoutMs })
+  if (r.exitCode === 255) throw new Error(`ssh ${HOST}: ${r.stderr.trim() || 'exit 255'}`)
+  return r
+}
+
 const remoteHas = async ($: EngineInterface, remoteRoot: string): Promise<boolean> => {
   const known = remoteRootOk.get(remoteRoot)
   if (known !== undefined) return known
-  const r = await $.process
-    .run(['ssh', '-o', 'ConnectTimeout=5', '-o', 'BatchMode=yes', HOST, `test -d ${quote(remoteRoot)}`], { timeoutMs: 8000 })
-    .catch(() => undefined)
-  const ok = r?.exitCode === 0
+  const r = await ssh($, ['-o', 'ConnectTimeout=5', '-o', 'BatchMode=yes', HOST, `test -d ${quote(remoteRoot)}`], 8000)
+  const ok = r.exitCode === 0
   remoteRootOk.set(remoteRoot, ok)
   return ok
 }
@@ -140,12 +146,12 @@ const syncToMini = async ($: EngineInterface, root: string, remoteRoot: string):
     `git reset --hard --quiet FETCH_HEAD`,
     'git rev-parse HEAD',
   ].join(' && ')
-  const r = await $.process.run(['ssh', HOST, quote(`${REMOTE_PATH}; ${script}`)], { timeoutMs: 180000 }).catch(() => undefined)
+  const r = await ssh($, [HOST, quote(`${REMOTE_PATH}; ${script}`)], 180000)
 
-  if (r?.stdout.includes('__DIRTY__')) {
+  if (r.stdout.includes('__DIRTY__')) {
     return { ok: false, why: `${HOST}:${remoteRoot} has uncommitted tracked changes of its own, and resetting it onto this commit would throw them away` }
   }
-  if (r?.exitCode !== 0 || !r.stdout.includes(sha)) {
+  if (r.exitCode !== 0 || !r.stdout.includes(sha)) {
     return { ok: false, why: `${HOST} could not be reset onto ${sha.slice(0, 7)}` }
   }
 
@@ -284,5 +290,18 @@ export const register: Register = (on, options) => {
             `The command actually run was: ${rewritten}`,
           ].join(' ')
     return { ...r, context: [...(r.context ?? []), note] }
+  }).catch(async ($, e, next) => {
+    // The hook threw or overran before deciding. Once the command is on its way (next.called) the
+    // replay is the answer; otherwise a heavy command must not slip onto the laptop unannounced.
+    if (next.called || disabled || mode === 'off' || e.run_in_background || !matches(e.command)) return next(e)
+    const why = `mini-offload failed to route this command to the mini (${next.error.message ?? next.error.kind})`
+    if (mode === 'ask') {
+      if (!interactive) return next(e)
+      const answer = await $.ui
+        .ask(`${why}. Run it on the laptop instead?\n  ${e.command.trim().slice(0, 120)}`, { header: 'mini-offload', options: ['Run here', 'Do not run it'] })
+        .catch(() => 'Do not run it')
+      if (answer === 'Run here') return next(e)
+    }
+    return { deny: `${why}; run it locally with /mini off or fix ssh` }
   })
 }

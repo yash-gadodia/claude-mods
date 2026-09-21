@@ -1,0 +1,3 @@
+./register.ts calls: $.command.register, $.env.get, $.fs.exists, $.fs.read, $.process.run, $.session.cwd, $.session.repo, $.store.get, $.store.set, $.ui.ask, $.ui.log, $.ui.toast
+./register.ts env reads: CLAUDE_MODS_DISABLE
+./register.ts hooks: session.start, command.run{command=mini}, tool.call{tool=Bash}

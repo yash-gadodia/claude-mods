@@ -6,13 +6,17 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-d97757.svg)](LICENSE)
 ![Claude Code — mod](https://img.shields.io/badge/Claude%20Code-mod-d97757)
+[![test](https://github.com/yash-gadodia/claude-mods/actions/workflows/test.yml/badge.svg)](https://github.com/yash-gadodia/claude-mods/actions/workflows/test.yml)
 
 ```
 usage  max  volty  opus-5  5h 34%  7d 12%  ctx 41% 82k  $1.23
 scope: 3/4 files
  ▸
 ```
-<sub>Nine mods, each drawing or guarding its own slice of the session. Above: `usage-band` and `scope-guard`.</sub>
+<sub>Ten mods, each drawing or guarding its own slice of the session. Above: `usage-band` and `scope-guard`.</sub>
+
+![usage-band, wod-band and wod-timer above the prompt](docs/wod-band.png)
+<sub>`usage-band`, `wod-band` and `wod-timer` in a live session.</sub>
 
 ## Why
 
@@ -58,7 +62,8 @@ Install only what you want — each mod is independent. Update with
 | Mod | What it does |
 |---|---|
 | **scope-guard** | Counts the distinct files one turn edits. At the threshold it stops and makes the goal get restated, so a small ask cannot quietly become a refactor. `/scope` sets it. |
-| **deploy-verify** | After a deploy command succeeds, curls the live URL with cache-busting and puts the verdict in the model's context. A deploy cannot be claimed without evidence. |
+| **deploy-verify** | After a deploy command succeeds, waits for the GitHub Actions run it started, then curls the live URL with cache-busting and puts the verdict in the model's context. A deploy cannot be claimed without evidence. |
+| **merge-gate** | Denies `gh pr merge`, a `git merge` on trunk, or a push to main unless the latest human message contains the word merge. Ship, push and deploy do not count. `/merge-gate` toggles it. |
 | **mini-offload** | Rewrites heavy Bash commands (test suites, builds, Docker) to run on a second machine over ssh — syncing the commit there first, because the remote checkout is the real hazard. `/mini` sets always, ask, or off. |
 
 ### Instruments
@@ -94,6 +99,12 @@ A disabled mod registers no command and every hook falls straight through to `ne
 Mods that touch your machine declare their settings in `plugin.json` `userConfig`, so they are
 editable through `/config` rather than by hand:
 
+- **scope-guard** — `/scope <n>` sets the file threshold. `/scope judge on|off` (default on) lets a
+  one-shot Haiku call decide at the threshold whether the next edit is still inside the goal you
+  stated first; a yes raises the ceiling by one for that turn, a no or a failed call falls back to
+  asking. `/scope off` disables the guard.
+- **merge-gate** — `/merge-gate on|off`. "merge x3" or "merge after each" in your message grants
+  that many merges.
 - **mini-offload** — `host` (ssh alias, default `mini`), `remotePath` (the PATH export prefixed to
   every offloaded command). Per-repo overrides live at `<repo>/.claude/mini-offload.json`.
 - **money-band** — `host`, `networthDb`, `financeDb`. Expects SQLite databases with
@@ -128,10 +139,16 @@ npm install
 npm test
 ```
 
-The interesting half of the suite is the clean baseline: commands that *mention* a deploy without
-being one — `echo "git push"`, `grep -r "wrangler deploy"`, a commit message quoting `make deploy`,
-a heredoc containing one. A false positive curls a live URL nothing was pushed to and then reports
-a verdict about it, which is worse than not checking at all.
+`npm test` typechecks every mod, runs its suite under `claude plugin test` (the official kit,
+`claude-code/testing`, with a mocked clock, store and process table), and checks each mod's
+**footprint**: the hooks, `$` calls and env reads that `claude plugin validate` reports, pinned in
+`<mod>/FOOTPRINT`. A mod that starts calling `$.http.fetch` fails the build instead of a README
+sentence going stale. `scripts/footprint.sh --write` re-pins after a deliberate change.
+
+The interesting half of deploy-verify's suite is the clean baseline: commands that *mention* a
+deploy without being one — `echo "git push"`, `grep -r "wrangler deploy"`, `git push --dry-run`, a
+commit message quoting `make deploy`, a heredoc containing one. A false positive curls a live URL
+nothing was pushed to and then reports a verdict about it, which is worse than not checking at all.
 
 ## Design rules
 
@@ -143,8 +160,9 @@ The ones that survived contact with real sessions:
    again", let it run and say something instead.
 3. **A render hook that throws takes the whole mod down with it.** Every band wraps its frame in
    `try/catch` and falls back to what was there.
-4. **Hooks have roughly ten seconds.** Past that the engine drops the result silently. Slow work
-   belongs on a timer, not in the call.
+4. **Hooks have ten seconds of their own time.** `next(e)` and `$` calls are free; `$.clock.sleep`
+   is not. Past the budget, or on a throw, the engine skips the hook silently unless it declares
+   `.catch` — so every guard here catches and denies, and slow work belongs on a timer.
 5. **Bands yield.** `e.props.hasSurvey` means the engine wants that slot; give it back.
 
 ## Requirements

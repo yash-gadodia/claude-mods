@@ -1,4 +1,4 @@
 {
-  "description": "turn.complete splits the answer into copyable blocks and appends them to the stash file; ui.render on AbovePrompt draws one Button per block, whose press runs pbcopy with no model turn; ui.render on AssistantMessage draws the same row under the message that holds the code, mouse-only because a hotkey is refused outside the band",
+  "description": "turn.complete splits the answer into copyable blocks, appends them to the stash file and pins the count as a status line; ui.render on AbovePrompt draws one Button per block and ui.render on AssistantMessage the same row under the message that holds the code, mouse-only because a hotkey is refused outside the band; ui.press keyed by the Button's id runs pbcopy with no model turn",
   "modules": ["./register.tsx"]
 }

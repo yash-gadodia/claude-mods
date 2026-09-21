@@ -23,6 +23,7 @@ type Block = { label: string; text: string }
 let blocks: Block[] = []
 let wa = false
 let stashPath: string | undefined
+let stashed = 0
 
 const clean = (text: string) => text.replace(/\s+$/, '').replace(/^\n+/, '')
 
@@ -129,12 +130,17 @@ const readStash = async ($: EngineInterface): Promise<Block[]> => {
 // The blocks of one transcript message, memoised: a render hook runs on every frame the message is
 // drawn in, and parsing the same markdown each time would cost the scrollback its speed.
 const inlineCache = new Map<string, Block[]>()
+const inlineById = new Map<string, Block[]>()
 const blocksFor = (text: string): Block[] => {
   const hit = inlineCache.get(text)
   if (hit) return hit
   const found = parse(text)
-  if (inlineCache.size > 200) inlineCache.clear()
+  if (inlineCache.size > 200) {
+    inlineCache.clear()
+    inlineById.clear()
+  }
   inlineCache.set(text, found)
+  inlineById.set(digest(text), found)
   return found
 }
 
@@ -144,6 +150,22 @@ const digest = (text: string) => {
   let h = 0
   for (let i = 0; i < text.length; i++) h = (Math.imul(31, h) + text.charCodeAt(i)) | 0
   return (h >>> 0).toString(36)
+}
+
+// The Button a press names, by its key: the band's `copy:N`, the transcript's `inline:<digest>:N`.
+const blockAt = (element: string): Block | undefined => {
+  const band = /^copy:(\d+)$/.exec(element)
+  if (band) return blocks[Number(band[1])]
+  const inline = /^inline:([^:]+):(\d+)$/.exec(element)
+  if (inline) return inlineById.get(inline[1] ?? '')?.[Number(inline[2])]
+  return undefined
+}
+
+// The status line under the prompt outlives a collapsed band, so the count of what is on offer
+// stays on screen when the buttons do not.
+const status = ($: EngineInterface): void => {
+  if (!blocks.length) return $.ui.status(undefined)
+  $.ui.status(`copy · ${blocks.length} in the band (1-${blocks.length}) · ${Math.min(stashed, STASH_KEEP)} stashed (/stash)`)
 }
 
 // The first thing anyone does when a mod misbehaves is try to turn it off. `CLAUDE_MODS_DISABLE=all`,
@@ -168,7 +190,10 @@ export const register: Register = (on) => {
     if (home) {
       const dir = `${home}/.claude/copy-stash`
       const made = await $.process.run(['mkdir', '-p', dir], { timeoutMs: 5000 }).catch(() => undefined)
-      if (made?.exitCode === 0) stashPath = `${dir}/stash.jsonl`
+      if (made?.exitCode === 0) {
+        stashPath = `${dir}/stash.jsonl`
+        stashed = (await readStash($)).length
+      }
     }
     await $.command
       .register({
@@ -225,14 +250,34 @@ export const register: Register = (on) => {
     if (!found.length) {
       if (blocks.length) {
         blocks = []
+        status($)
         $.ui.invalidate('ui.render')
       }
       return r
     }
     blocks = found
     await stash($, found)
+    stashed += found.length
+    status($)
     $.ui.invalidate('ui.render')
     return r
+  })
+
+  // A press is answered here rather than in the Button closures: a closure handle belongs to one
+  // drawing, and a press that lands during a redraw is dropped by core, while the hook still sees
+  // the event and its key.
+  on('ui.press', { plugin: MOD }, async ($, e, next) => {
+    if (disabled) return next(e)
+    if (e.element === 'copy:wa') {
+      wa = !wa
+      await $.store.set(WA_KEY, wa).catch(() => undefined)
+      $.ui.invalidate('ui.render')
+      return { element: e.element }
+    }
+    const block = blockAt(e.element)
+    if (!block) return next(e)
+    await copy($, block)
+    return { element: e.element }
   })
 
   // A render hook that throws unmounts the module, so a bad frame falls back to the band as it was.
@@ -247,24 +292,9 @@ export const register: Register = (on) => {
           <Box flexDirection="row" columnGap={2}>
             <Text dimColor>copy</Text>
             {blocks.map((block, i) => (
-              <Button
-                key={`copy:${i}`}
-                hotkey={String(i + 1)}
-                label={block.label}
-                onPress={() => void copy($, block)}
-              />
+              <Button key={`copy:${i}`} hotkey={String(i + 1)} label={block.label} onPress={() => undefined} />
             ))}
-            <Button
-              key="copy:wa"
-              hotkey="0"
-              dimColor={!wa}
-              label={wa ? 'wa on' : 'wa'}
-              onPress={() => {
-                wa = !wa
-                void $.store.set(WA_KEY, wa).catch(() => undefined)
-                $.ui.invalidate('ui.render')
-              }}
-            />
+            <Button key="copy:wa" hotkey="0" dimColor={!wa} label={wa ? 'wa on' : 'wa'} onPress={() => undefined} />
           </Box>
           {rest}
         </Box>
@@ -293,12 +323,7 @@ export const register: Register = (on) => {
           <Box flexDirection="row" columnGap={2}>
             <Text dimColor>copy</Text>
             {found.map((block, i) => (
-              <Button
-                key={`inline:${id}:${i}`}
-                dimColor
-                label={block.label}
-                onPress={() => void copy($, block)}
-              />
+              <Button key={`inline:${id}:${i}`} dimColor label={block.label} onPress={() => undefined} />
             ))}
           </Box>
         </Box>

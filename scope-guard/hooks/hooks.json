@@ -1,4 +1,4 @@
 {
-  "description": "turn.start resets the count, tool.call on the editing tools counts distinct files and asks at the threshold; /scope sets it",
+  "description": "turn.start resets the count, tool.check on the editing tools counts distinct files and at the threshold asks a Haiku judge, then the user, or denies and ends the turn headless; /scope sets it",
   "modules": ["./register.ts"]
 }

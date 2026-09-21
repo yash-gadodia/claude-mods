@@ -3,11 +3,13 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "vitest run",
-    "typecheck": "for d in */tsconfig.json; do (cd $(dirname $d) && tsc -p . ) || exit 1; done"
+    "typecheck": "for d in */tsconfig.json; do (cd $(dirname $d) && tsc -p . ) || exit 1; done",
+    "validate": "for d in */.claude-plugin/plugin.json; do claude plugin validate $(dirname $(dirname $d)) || exit 1; done",
+    "footprint": "scripts/footprint.sh",
+    "test:plugins": "for d in */.claude-plugin/plugin.json; do claude plugin test $(dirname $(dirname $d)) || exit 1; done",
+    "test": "npm run typecheck && npm run footprint && npm run test:plugins"
   },
   "devDependencies": {
-    "typescript": "^5.7.0",
-    "vitest": "^2.1.0"
+    "typescript": "^5.7.0"
   }
 }

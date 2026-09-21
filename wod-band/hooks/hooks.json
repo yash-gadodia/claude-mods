@@ -1,4 +1,4 @@
 {
-  "description": "ui.render on AbovePrompt draws a 3-row pixel athlete plus the AMRAP score; frames advance on a 280ms clock only while a turn is running, and a turn completing is a rep",
+  "description": "ui.render on AbovePrompt draws a 13x3 pixel athlete as one Raster plus the AMRAP score; a 280ms clock repaints frames in place with $.ui.blit and invalidates only when the caption changes; tool.call lands a rep per completed Edit/Write (thruster), Bash (burpee) or Read/Grep/Glob/Agent (pull-up) and shows a no-rep frame on an error result",
   "modules": ["./register.tsx"]
 }

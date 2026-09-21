@@ -1,8 +1,18 @@
 {
   "name": "chrome-switch",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Switches the Claude in Chrome extension between named browser profiles with select_browser, which needs no approval click, and picks the default before the first browser call of a session.",
   "author": {
     "name": "Yash Gadodia"
-  }
+  },
+  "license": "MIT",
+  "homepage": "https://github.com/yash-gadodia/claude-mods",
+  "repository": "https://github.com/yash-gadodia/claude-mods",
+  "keywords": [
+    "claude-code",
+    "claude-code-plugin",
+    "claude-mod",
+    "function-hooks",
+    "chrome-switch"
+  ]
 }

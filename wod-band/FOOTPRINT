@@ -1,0 +1,3 @@
+./register.tsx calls: $.clock.every, $.clock.now, $.command.register, $.env.get, $.store.get, $.store.set, $.ui.blit, $.ui.invalidate, $.ui.log, $.ui.resolve, $.ui.toast
+./register.tsx env reads: CLAUDE_MODS_DISABLE
+./register.tsx hooks: session.start, command.run{command=wod}, turn.start, tool.call{tool=/^(Edit|Write|MultiEdit|NotebookEdit|Bash|Read|Grep|Glob|Agent)$/}, turn.complete, turn.abort, ui.render{component=AbovePrompt}

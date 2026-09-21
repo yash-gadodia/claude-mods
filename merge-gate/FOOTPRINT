@@ -1,0 +1,3 @@
+./register.ts calls: $.command.register, $.env.get, $.process.run, $.session.messages, $.store.get, $.store.set, $.ui.log
+./register.ts env reads: CLAUDE_MODS_DISABLE
+./register.ts hooks: session.start, command.run{command=merge-gate}, prompt.submit, tool.call{tool=Bash}

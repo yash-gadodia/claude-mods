@@ -1,0 +1,4 @@
+{
+  "description": "prompt.submit remembers the latest human message, tool.call on Bash denies a merge unless that message says merge; /merge-gate turns it on or off",
+  "modules": ["./register.ts"]
+}

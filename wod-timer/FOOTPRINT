@@ -1,0 +1,3 @@
+./register.tsx calls: $.clock.every, $.clock.now, $.command.register, $.env.get, $.store.get, $.store.set, $.ui.invalidate, $.ui.log, $.ui.resolve
+./register.tsx env reads: CLAUDE_MODS_DISABLE
+./register.tsx hooks: session.start, command.run{command=wod-timer}, prompt.submit, turn.start, turn.step, turn.complete, turn.abort, ui.render{component=Spinner}, ui.render{component=TurnDuration}, ui.render{component=AbovePrompt}

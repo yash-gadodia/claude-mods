@@ -6,7 +6,8 @@ import type { Register, EngineInterface } from 'claude-code'
 // transactions. Nothing is estimated here — a number that looks wrong is wrong in the source.
 //
 // ssh is slow, so the fetch never happens inside the render hook: session.start primes it and a
-// 15-minute timer refreshes it. /money on, off, or refresh.
+// one-shot timer re-arms itself after each fetch settles, so two fetches never overlap and nothing
+// runs while the band is off. /money on, off, or refresh.
 
 // Host and database paths come from userConfig: this mod reads a Happy-shaped SQLite pair
 // (accounts/balances, transactions) over ssh, and nothing about that is specific to one machine.
@@ -47,6 +48,8 @@ let money: Money | undefined
 let error: string | undefined
 let shown = true
 let timer: { cancel: () => void } | undefined
+let epoch = 0
+let refreshFailed = false
 
 const num = (value: string | undefined) => {
   const n = Number(value)
@@ -87,6 +90,37 @@ const fetchMoney = async ($: EngineInterface): Promise<void> => {
     biggest: finance[3] ?? '',
     at: await $.clock.now(),
   }
+}
+
+// Each arm takes a token; a callback whose token has moved on is stale (the band was turned off, or
+// re-armed by /money, or the module was reloaded) and does nothing, so timers never fork.
+const arm = ($: EngineInterface): void => {
+  timer?.cancel()
+  const token = ++epoch
+  timer = $.clock.after(REFRESH_MS, () => {
+    if (token !== epoch || !shown) return
+    void refresh($, token)
+  })
+}
+
+// One failed refresh is logged once and the chain goes on; a fetch that rejected is not a reason to
+// stop reading for the rest of the session.
+const refresh = async ($: EngineInterface, token: number): Promise<void> => {
+  try {
+    await fetchMoney($)
+    await $.ui.invalidate('ui.render')
+    refreshFailed = false
+  } catch (err) {
+    if (!refreshFailed) $.ui.log(`money-band: refresh failed, trying again in ${REFRESH_MS / 60000}m: ${err}`)
+    refreshFailed = true
+  }
+  if (token === epoch && shown) arm($)
+}
+
+const disarm = (): void => {
+  epoch++
+  timer?.cancel()
+  timer = undefined
 }
 
 const sgd = (amount: number) => {
@@ -132,11 +166,8 @@ export const register: Register = (on, options) => {
       })
       .catch(err => $.ui.log(`money-band: /money not registered: ${err}`))
     if (!shown) return r
-    // primed without blocking the session, and refreshed on a timer from then on
-    void fetchMoney($).then(() => $.ui.invalidate('ui.render'))
-    timer = $.clock.every(REFRESH_MS, () => {
-      void fetchMoney($).then(() => $.ui.invalidate('ui.render'))
-    })
+    // primed without blocking the session, and re-armed from each fetch from then on
+    void refresh($, ++epoch)
     return r
   })
 
@@ -144,8 +175,7 @@ export const register: Register = (on, options) => {
     const arg = e.args.trim().toLowerCase()
     if (arg === 'off') {
       shown = false
-      timer?.cancel()
-      timer = undefined
+      disarm()
       await $.store.set(SHOWN_KEY, false).catch(() => undefined)
       $.ui.invalidate('ui.render')
       return { text: 'money band off' }
@@ -156,11 +186,7 @@ export const register: Register = (on, options) => {
       $.ui.status('reading the mini…')
       await fetchMoney($)
       $.ui.status(undefined)
-      if (!timer) {
-        timer = $.clock.every(REFRESH_MS, () => {
-          void fetchMoney($).then(() => $.ui.invalidate('ui.render'))
-        })
-      }
+      arm($)
       $.ui.invalidate('ui.render')
       if (error) return { text: `money-band could not read the mini: ${error}` }
       if (!money) return { text: 'money-band got no figures back' }

@@ -1,8 +1,18 @@
 {
   "name": "wod-timer",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "3, 2, 1, GO above the prompt when you submit, a running gym clock while Claude works, and your split when the turn lands.",
   "author": {
     "name": "Yash Gadodia"
-  }
+  },
+  "license": "MIT",
+  "homepage": "https://github.com/yash-gadodia/claude-mods",
+  "repository": "https://github.com/yash-gadodia/claude-mods",
+  "keywords": [
+    "claude-code",
+    "claude-code-plugin",
+    "claude-mod",
+    "function-hooks",
+    "wod-timer"
+  ]
 }

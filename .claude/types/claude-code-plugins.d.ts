@@ -1,4 +1,4 @@
-// Written by Claude Code 2.1.272.
+// Written by Claude Code 2.1.278.
 // Claude Code function hooks: the enabled plugins' type contracts.
 //
 // Written by `/plugin-types` beside claude-code.d.ts; regenerate with that

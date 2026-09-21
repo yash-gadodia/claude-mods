@@ -1,0 +1,3 @@
+./register.ts calls: $.command.register, $.env.get, $.mcp.call, $.process.run, $.ui.log, $.ui.toast
+./register.ts env reads: CLAUDE_MODS_DISABLE, HOME
+./register.ts hooks: session.start, command.run{command=chromep}, tool.call{tool=/^mcp__claude-in-chrome__/}

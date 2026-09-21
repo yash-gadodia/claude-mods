@@ -1,8 +1,18 @@
 {
   "name": "scope-guard",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Counts the distinct files a turn edits and stops at a threshold to make the goal get restated, so a small ask cannot quietly become a refactor.",
   "author": {
     "name": "Yash Gadodia"
-  }
+  },
+  "license": "MIT",
+  "homepage": "https://github.com/yash-gadodia/claude-mods",
+  "repository": "https://github.com/yash-gadodia/claude-mods",
+  "keywords": [
+    "claude-code",
+    "claude-code-plugin",
+    "claude-mod",
+    "function-hooks",
+    "scope-guard"
+  ]
 }

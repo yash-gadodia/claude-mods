@@ -1,0 +1,3 @@
+./register.tsx calls: $.clock.now, $.command.register, $.env.get, $.process.run, $.store.get, $.store.set, $.ui.invalidate, $.ui.log, $.ui.resolve, $.ui.status, $.ui.toast
+./register.tsx env reads: CLAUDE_MODS_DISABLE, HOME
+./register.tsx hooks: session.start, command.run{command=stash}, turn.complete, ui.press{plugin=copy-band}, ui.render{component=AbovePrompt}, ui.render{component=AssistantMessage}

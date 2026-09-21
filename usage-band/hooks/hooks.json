@@ -1,4 +1,4 @@
 {
-  "description": "ui.render on AbovePrompt draws the usage line; the figures come from $.session.usage() after each turn, which is an in-process read of what the last API response reported",
+  "description": "ui.render on AbovePrompt draws the usage line; the figures arrive on session.measure after each turn and whenever a limit window moves, an in-process push of what the last API response reported; turn.complete adds the turn's own token counts",
   "modules": ["./register.tsx"]
 }

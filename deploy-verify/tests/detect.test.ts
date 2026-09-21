@@ -1,11 +1,17 @@
-import { describe, expect, it } from 'vitest'
-import { isDeploy, sanitise } from '../hooks/detect.ts'
+import { describe, expect, test, tier } from 'claude-code/testing'
+import { isCiOnly, isDeploy, isGh, isPush, pushBranch, RUN_URL, sanitise } from '../hooks/detect.ts'
+
+tier('user')
 
 // Real deploys. A miss here means a deploy goes unverified and the model is free to claim it worked.
 const DEPLOYS = [
   'git push',
   'git push origin main',
   'git push --force-with-lease origin feature/x',
+  'git -C ../x push',
+  'git -C /repo push origin main',
+  'echo ok && git push',
+  'git push --dry-run; git push',
   'wrangler deploy',
   'wrangler pages deploy ./dist',
   'vercel --prod',
@@ -17,6 +23,8 @@ const DEPLOYS = [
   'bun run deploy',
   'gcloud run deploy api --region asia-southeast1',
   'gh workflow run release.yml',
+  'gh pr merge 12 --squash',
+  'gh run rerun 123',
   'make deploy',
   'bun run build && git push origin main',
 ]
@@ -43,42 +51,79 @@ const NOT_DEPLOYS = [
   'echo "deploy" # git push happens later',
   '# make deploy',
   'sed -i "" "s/git push/git push --tags/" README.md',
+  'git push --dry-run',
+  'git push -n origin main',
+  'git push --dry-run origin main && echo done',
+  'gh pr create --fill',
+  'gh pr view 12',
 ]
 
 describe('isDeploy', () => {
-  it.each(DEPLOYS)('detects %j', command => {
-    expect(isDeploy(command)).toBe(true)
+  for (const command of DEPLOYS) test(`detects ${JSON.stringify(command)}`, () => expect(isDeploy(command)).toBe(true))
+  for (const command of NOT_DEPLOYS) test(`does not fire on ${JSON.stringify(command)}`, () => expect(isDeploy(command)).toBe(false))
+})
+
+describe('shape of the trigger', () => {
+  test('a push is a push, a gh command is not', () => {
+    expect(isPush('git -C ../x push')).toBe(true)
+    expect(isPush('echo ok && git push')).toBe(true)
+    expect(isPush('git push -n')).toBe(false)
+    expect(isPush('gh pr merge 12')).toBe(false)
+    expect(isGh('gh pr merge 12')).toBe(true)
+    expect(isGh('gh workflow run x.yml')).toBe(true)
+    expect(isGh('git push')).toBe(false)
   })
 
-  it.each(NOT_DEPLOYS)('does not fire on %j', command => {
-    expect(isDeploy(command)).toBe(false)
+  test('gh pr create runs CI without deploying', () => {
+    expect(isCiOnly('gh pr create --fill')).toBe(true)
+    expect(isCiOnly('gh pr merge 12')).toBe(false)
+    expect(isCiOnly('echo "gh pr create"')).toBe(false)
+  })
+
+  test('the branch a push lands on', () => {
+    expect(pushBranch('git push origin main')).toBe('main')
+    expect(pushBranch('git push -u origin feat/a')).toBe('feat/a')
+    expect(pushBranch('git push --force-with-lease origin feature/x')).toBe('feature/x')
+    expect(pushBranch('git push origin main:prod')).toBe('prod')
+    expect(pushBranch('git push origin +refs/heads/main')).toBe('main')
+    expect(pushBranch('git -C ../x push origin main')).toBe('main')
+    expect(pushBranch('bun run build && git push origin main')).toBe('main')
+    expect(pushBranch('git push')).toBeUndefined()
+    expect(pushBranch('git push origin')).toBeUndefined()
+    expect(pushBranch('git push --dry-run origin main')).toBeUndefined()
+  })
+
+  test('the run or pull request URL gh prints', () => {
+    expect('https://github.com/o/r/actions/runs/42'.match(RUN_URL)?.[0]).toBe('https://github.com/o/r/actions/runs/42')
+    expect('Created https://github.com/o/r/pull/7\n'.match(RUN_URL)?.[0]).toBe('https://github.com/o/r/pull/7')
+    expect('✓ Created workflow_dispatch event for x.yml at main'.match(RUN_URL)).toBe(null)
   })
 })
 
 describe('sanitise', () => {
-  it('removes a single-quoted span', () => {
+  test('removes a single-quoted span', () => {
     expect(sanitise("echo 'git push'")).not.toMatch(/git\s+push/)
   })
 
-  it('removes a double-quoted span but keeps what follows', () => {
+  test('removes a double-quoted span but keeps what follows', () => {
     const out = sanitise('echo "hello" && git push')
     expect(out).not.toMatch(/hello/)
     expect(out).toMatch(/git\s+push/)
   })
 
-  it('removes a heredoc body with a quoted marker', () => {
+  test('removes a heredoc body with a quoted marker', () => {
     expect(sanitise("cat <<'EOF'\ngit push\nEOF")).not.toMatch(/git\s+push/)
   })
 
-  it('removes an unterminated heredoc rather than trusting it', () => {
+  test('removes an unterminated heredoc rather than trusting it', () => {
     expect(sanitise('cat <<EOF\ngit push')).not.toMatch(/git\s+push/)
   })
 
-  it('keeps an escaped quote from ending the span early', () => {
+  test('keeps an escaped quote from ending the span early', () => {
     expect(sanitise('echo "a \\" git push"')).not.toMatch(/git\s+push/)
   })
 
-  it('leaves a bare command untouched', () => {
+  test('leaves a bare command untouched', () => {
     expect(sanitise('git push origin main')).toMatch(/git\s+push\s+origin\s+main/)
   })
 })

@@ -1,4 +1,4 @@
 {
-  "description": "ui.render on AbovePrompt draws the money line; the figures are fetched from the mini on session start and every 15 minutes, never inside the render hook",
+  "description": "ui.render on AbovePrompt draws the money line; the figures are fetched from the mini on session start and every 15 minutes by a one-shot timer that re-arms after each fetch, never inside the render hook",
   "modules": ["./register.tsx"]
 }

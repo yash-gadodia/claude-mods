@@ -1,8 +1,18 @@
 {
   "name": "copy-band",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Click-to-copy buttons above the prompt for every code block and quoted draft in the last answer, a durable stash of older ones, and a WhatsApp/Telegram wrap.",
   "author": {
     "name": "Yash Gadodia"
-  }
+  },
+  "license": "MIT",
+  "homepage": "https://github.com/yash-gadodia/claude-mods",
+  "repository": "https://github.com/yash-gadodia/claude-mods",
+  "keywords": [
+    "claude-code",
+    "claude-code-plugin",
+    "claude-mod",
+    "function-hooks",
+    "copy-band"
+  ]
 }

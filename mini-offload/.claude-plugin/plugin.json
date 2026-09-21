@@ -1,6 +1,6 @@
 {
   "name": "mini-offload",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Routes heavy Bash commands (test suites, builds, Docker) to a second machine over ssh, with the PATH export and working directory already right, and the commit synced first.",
   "author": {
     "name": "Yash Gadodia"
@@ -19,5 +19,15 @@
       "description": "Shell prefix run before every offloaded command, so a non-interactive ssh finds the right toolchain.",
       "default": "export PATH=/opt/homebrew/bin:$PATH"
     }
-  }
+  },
+  "license": "MIT",
+  "homepage": "https://github.com/yash-gadodia/claude-mods",
+  "repository": "https://github.com/yash-gadodia/claude-mods",
+  "keywords": [
+    "claude-code",
+    "claude-code-plugin",
+    "claude-mod",
+    "function-hooks",
+    "mini-offload"
+  ]
 }

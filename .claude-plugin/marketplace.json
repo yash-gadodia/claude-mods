@@ -7,47 +7,66 @@
     {
       "name": "deploy-verify",
       "source": "./deploy-verify",
-      "description": "Verifies the live URL after a deploy command succeeds."
+      "description": "Verifies the live URL after a deploy command succeeds.",
+      "version": "0.3.0"
     },
     {
       "name": "mini-offload",
       "source": "./mini-offload",
-      "description": "Routes heavy Bash commands to a second machine over ssh, syncing the commit first."
+      "description": "Routes heavy Bash commands to a second machine over ssh, syncing the commit first.",
+      "version": "0.3.0"
     },
     {
       "name": "scope-guard",
       "source": "./scope-guard",
-      "description": "Stops a turn that has edited too many files until the goal is restated."
+      "description": "Stops a turn that has edited too many files until the goal is restated.",
+      "version": "0.3.0"
+    },
+    {
+      "name": "merge-gate",
+      "source": "./merge-gate",
+      "version": "0.3.0",
+      "description": "Denies a merge unless the latest human message says merge; ship, push and deploy do not count."
     },
     {
       "name": "money-band",
       "source": "./money-band",
-      "description": "A money line above the prompt, read from SQLite databases over ssh."
+      "description": "A money line above the prompt, read from SQLite databases over ssh.",
+      "version": "0.3.0"
     },
     {
       "name": "usage-band",
       "source": "./usage-band",
-      "description": "Limit windows, context fill and cost above the prompt, with a nudge to clear."
+      "description": "Limit windows, context fill and cost above the prompt, with a nudge to clear.",
+      "version": "0.3.0"
     },
     {
       "name": "copy-band",
       "source": "./copy-band",
-      "description": "Click-to-copy buttons above the prompt for the last answer's blocks, plus a durable stash."
+      "description": "Click-to-copy buttons above the prompt for the last answer's blocks, plus a durable stash.",
+      "version": "0.3.0"
     },
     {
       "name": "chrome-switch",
       "source": "./chrome-switch",
-      "description": "Switches the Chrome profile Claude drives with no approval click."
+      "description": "Switches the Chrome profile Claude drives with no approval click.",
+      "version": "0.3.0"
     },
     {
       "name": "wod-band",
       "source": "./wod-band",
-      "description": "A pixel Ragtag athlete above the prompt: every turn is a rep, the session is an AMRAP."
+      "description": "A pixel Ragtag athlete above the prompt: every turn is a rep, the session is an AMRAP.",
+      "version": "0.3.0"
     },
     {
       "name": "wod-timer",
       "source": "./wod-timer",
-      "description": "3, 2, 1, GO on submit, a running clock per turn, and the split when it lands."
+      "description": "3, 2, 1, GO on submit, a running clock per turn, and the split when it lands.",
+      "version": "0.3.0"
     }
-  ]
+  ],
+  "description": "Mods that keep an agent honest, plus a few that make the terminal fun. Function-hooks plugins for Claude Code.",
+  "metadata": {
+    "homepage": "https://github.com/yash-gadodia/claude-mods"
+  }
 }

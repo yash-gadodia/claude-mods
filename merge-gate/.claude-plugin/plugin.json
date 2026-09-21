@@ -1,0 +1,8 @@
+{
+  "name": "merge-gate",
+  "version": "0.3.0",
+  "description": "Denies a Bash merge (gh pr merge, git merge on main, push onto main) unless the latest human message says the word merge; ship, push and deploy do not count.",
+  "author": {
+    "name": "Yash Gadodia"
+  }
+}

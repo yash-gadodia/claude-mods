@@ -181,14 +181,12 @@ export const register: Register = (on) => {
     return { text: `driving ${wanted}` }
   })
 
-  // A tool matcher only takes a built-in tool's name, so one unfiltered hook narrows on e.tool.
-  // Everything before that test costs a string compare on every tool call in the session.
-  on('tool.call', async ($, e, next) => {
+  // Matched on the server's prefix, so no other tool call passes through here at all.
+  on('tool.call', { tool: /^mcp__claude-in-chrome__/ }, async ($, e, next) => {
     if (disabled) return next(e)
-    // e.tool is the union of the tool names the typings snapshot knows, which an MCP server
-    // connected after they were generated is not in; widened, the names compare.
+    // e.tool is McpToolName, a template the typings snapshot cannot narrow further for a server
+    // it does not declare; widened, the names compare.
     const tool: string = e.tool
-    if (!tool.startsWith(PREFIX)) return next(e)
 
     // The list tool's own instructions send the model to switch_browser, which is the click. Naming
     // the map underneath the result points it at select_browser instead.
