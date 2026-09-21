@@ -1,0 +1,4 @@
+{
+  "description": "ui.render on AbovePrompt draws the usage line; the figures come from $.session.usage() after each turn, which is an in-process read of what the last API response reported",
+  "modules": ["./register.tsx"]
+}

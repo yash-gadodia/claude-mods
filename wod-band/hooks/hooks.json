@@ -1,0 +1,4 @@
+{
+  "description": "ui.render on AbovePrompt draws a 3-row pixel athlete plus the AMRAP score; frames advance on a 280ms clock only while a turn is running, and a turn completing is a rep",
+  "modules": ["./register.tsx"]
+}

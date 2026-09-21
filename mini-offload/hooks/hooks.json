@@ -1,0 +1,4 @@
+{
+  "description": "tool.call on Bash: recognises heavy commands and rewrites them to run on the mini over ssh; /mini sets always, ask or off",
+  "modules": ["./register.ts"]
+}

@@ -1,0 +1,4 @@
+{
+  "description": "prompt.submit starts a 3-2-1-GO countdown drawn by ui.render on AbovePrompt, then a 1s clock runs until turn.complete records the split",
+  "modules": ["./register.tsx"]
+}

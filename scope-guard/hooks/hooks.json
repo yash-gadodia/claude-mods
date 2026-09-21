@@ -1,0 +1,4 @@
+{
+  "description": "turn.start resets the count, tool.call on the editing tools counts distinct files and asks at the threshold; /scope sets it",
+  "modules": ["./register.ts"]
+}

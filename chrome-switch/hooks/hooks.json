@@ -1,0 +1,4 @@
+{
+  "description": "command.run serves /chromep; a tool.call hook selects the default browser before the session's first claude-in-chrome call and tells the model which deviceId is which, so it never broadcasts a pairing request",
+  "modules": ["./register.ts"]
+}

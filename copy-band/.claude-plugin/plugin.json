@@ -1,0 +1,6 @@
+{
+  "name": "copy-band",
+  "version": "0.1.0",
+  "description": "Click-to-copy buttons above the prompt for every code block and quoted draft in the last answer, a durable stash of older ones, and a WhatsApp/Telegram wrap.",
+  "author": { "name": "Yash Gadodia" }
+}

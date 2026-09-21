@@ -1,0 +1,4 @@
+{
+  "description": "tool.call on Bash: recognises deploy commands, verifies the live URL after one succeeds, and appends the verdict as tool-result context",
+  "modules": ["./register.ts"]
+}

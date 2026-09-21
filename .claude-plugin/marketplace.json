@@ -1,0 +1,53 @@
+{
+  "name": "claude-mods",
+  "owner": {
+    "name": "Yash Gadodia"
+  },
+  "plugins": [
+    {
+      "name": "deploy-verify",
+      "source": "./deploy-verify",
+      "description": "Verifies the live URL after a deploy command succeeds."
+    },
+    {
+      "name": "mini-offload",
+      "source": "./mini-offload",
+      "description": "Routes heavy Bash commands to a second machine over ssh, syncing the commit first."
+    },
+    {
+      "name": "scope-guard",
+      "source": "./scope-guard",
+      "description": "Stops a turn that has edited too many files until the goal is restated."
+    },
+    {
+      "name": "money-band",
+      "source": "./money-band",
+      "description": "A money line above the prompt, read from SQLite databases over ssh."
+    },
+    {
+      "name": "usage-band",
+      "source": "./usage-band",
+      "description": "Limit windows, context fill and cost above the prompt, with a nudge to clear."
+    },
+    {
+      "name": "copy-band",
+      "source": "./copy-band",
+      "description": "Click-to-copy buttons above the prompt for the last answer's blocks, plus a durable stash."
+    },
+    {
+      "name": "chrome-switch",
+      "source": "./chrome-switch",
+      "description": "Switches the Chrome profile Claude drives with no approval click."
+    },
+    {
+      "name": "wod-band",
+      "source": "./wod-band",
+      "description": "A pixel Ragtag athlete above the prompt: every turn is a rep, the session is an AMRAP."
+    },
+    {
+      "name": "wod-timer",
+      "source": "./wod-timer",
+      "description": "3, 2, 1, GO on submit, a running clock per turn, and the split when it lands."
+    }
+  ]
+}

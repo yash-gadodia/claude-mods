@@ -1,0 +1,23 @@
+{
+  "name": "mini-offload",
+  "version": "0.1.0",
+  "description": "Routes heavy Bash commands (test suites, builds, Docker) to a second machine over ssh, with the PATH export and working directory already right, and the commit synced first.",
+  "author": {
+    "name": "Yash Gadodia"
+  },
+  "userConfig": {
+    "host": {
+      "type": "string",
+      "title": "Remote host",
+      "description": "The ssh alias of the machine heavy commands run on. Must work as `ssh <host>` with no password prompt (BatchMode).",
+      "default": "mini",
+      "required": true
+    },
+    "remotePath": {
+      "type": "string",
+      "title": "Remote PATH export",
+      "description": "Shell prefix run before every offloaded command, so a non-interactive ssh finds the right toolchain.",
+      "default": "export PATH=/opt/homebrew/bin:$PATH"
+    }
+  }
+}
