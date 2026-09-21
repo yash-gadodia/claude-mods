@@ -1,4 +1,5 @@
 import type { Register, EngineInterface } from 'claude-code'
+import { isDeploy } from './detect.ts'
 
 // A deploy is not done when the push exits 0, it is done when the live URL serves the change.
 // This mod closes that gap mechanically: after a deploy command succeeds it fetches the target
@@ -9,19 +10,6 @@ import type { Register, EngineInterface } from 'claude-code'
 //   { "url": "https://example.com", "matchFile": "VERSION" }
 //   { "targets": [ { "url": "...", "match": "..." }, ... ] }
 // `match` may be omitted, in which case a 200 with a non-empty body is the whole test.
-
-const DEPLOY = [
-  /\bgit\s+push\b/,
-  /\bwrangler\s+(pages\s+)?deploy\b/,
-  /\bvercel\b[^|;]*--prod\b/,
-  /\bnetlify\s+deploy\b[^|;]*--prod\b/,
-  /\brailway\s+up\b/,
-  /\b(fly|flyctl)\s+deploy\b/,
-  /\b(npm|pnpm|yarn|bun)\s+run\s+deploy\b/,
-  /\bgcloud\s+run\s+deploy\b/,
-  /\bgh\s+workflow\s+run\b/,
-  /\bmake\s+deploy\b/,
-]
 
 // A hook that blocks for ~10s or more is dropped by the engine: core's result is used and
 // everything the hook returned is discarded, silently — a command.run hook is told it went
@@ -34,8 +22,6 @@ const WATCH_TICKS = 12
 
 type Target = { url: string; match?: string; matchFile?: string }
 type Config = { url?: string; match?: string; matchFile?: string; targets?: Target[] }
-
-const isDeploy = (command: string) => DEPLOY.some(re => re.test(command))
 
 const readConfig = async ($: EngineInterface, root: string): Promise<Config | undefined> => {
   const path = `${root}/.claude/deploy-verify.json`
@@ -116,6 +102,7 @@ const watch = ($: EngineInterface, root: string, targets: Target[]) => {
       if (!failed.length) {
         timer.cancel()
         watcher = undefined
+        await record($, verdicts)
         $.ui.toast(`deploy-verify: live now — ${verdicts[0]}`, { timeoutMs: 15000 })
         return
       }
@@ -127,6 +114,44 @@ const watch = ($: EngineInterface, root: string, targets: Target[]) => {
     })()
   })
   watcher = timer
+}
+
+// A band draws for the person; a context block draws for the model. The last live check goes into
+// the first user message's context under this name, replacing its own previous copy rather than
+// accumulating, and `$.ui.invalidate('prompt.context')` refreshes it after every check. This is the
+// difference between evidence the model can talk around and evidence it cannot.
+const CONTEXT_BLOCK = 'deployVerify'
+let lastVerdict: { lines: string[]; at: number } | undefined
+
+const record = async ($: EngineInterface, lines: string[]) => {
+  lastVerdict = { lines, at: await $.clock.now() }
+  $.ui.invalidate('prompt.context')
+}
+
+const ago = (then: number, now: number) => {
+  const mins = Math.round((now - then) / 60000)
+  return mins < 1 ? 'just now' : mins === 1 ? '1 minute ago' : `${mins} minutes ago`
+}
+
+// Hook advisories repeat. The same "no target configured" paragraph lands on every deploy in a repo
+// that has none, and each copy costs context to say what the last one said. Each advisory is hashed
+// and suppressed for a cooldown. Verdicts are never throttled: a verdict is evidence, and it differs.
+const ADVISORY_COOLDOWN_MS = 10 * 60 * 1000
+const advised = new Map<string, number>()
+
+const digest = (text: string) => {
+  let h = 5381
+  for (let i = 0; i < text.length; i++) h = ((h * 33) ^ text.charCodeAt(i)) >>> 0
+  return `${h}`
+}
+
+const fresh = async ($: EngineInterface, text: string): Promise<boolean> => {
+  const key = digest(text)
+  const now = await $.clock.now()
+  const seen = advised.get(key)
+  if (seen !== undefined && now - seen < ADVISORY_COOLDOWN_MS) return false
+  advised.set(key, now)
+  return true
 }
 
 // The first thing anyone does when a mod misbehaves is try to turn it off. `CLAUDE_MODS_DISABLE=all`,
@@ -193,6 +218,19 @@ export const register: Register = on => {
     return { text: verdicts.join('\n') }
   })
 
+  on('prompt.context', async ($, e, next) => {
+    const below = await next(e)
+    if (disabled || !lastVerdict) return below
+    const now = await $.clock.now()
+    const text = [
+      `Last live deploy check, ${ago(lastVerdict.at, now)}:`,
+      ...lastVerdict.lines.map(v => `  ${v}`),
+      'This is the only evidence about the live site in this session. Do not describe the deploy as',
+      'verified unless a line above starts with VERIFIED, and do not re-state an older claim over it.',
+    ].join('\n')
+    return { ...below, blocks: [...below.blocks.filter(b => b.name !== CONTEXT_BLOCK), { name: CONTEXT_BLOCK, text }] }
+  })
+
   on('tool.call', { tool: 'Bash' }, async ($, e, next) => {
     if (disabled) return next(e)
     const r = await next(e)
@@ -200,8 +238,11 @@ export const register: Register = on => {
 
     const add = (...lines: string[]) => ({ ...r, context: [...(r.context ?? []), lines.join('\n')] })
 
+    // Advisories are throttled; verdicts below are not.
+    const advise = async (...lines: string[]) => ((await fresh($, lines.join('\n'))) ? add(...lines) : r)
+
     if (r.isError) {
-      return add(
+      return advise(
         'deploy-verify: the deploy command did not succeed. Do not report a deploy as done.',
         'Report the failure with its output, then stop or fix it — whichever the user asked for.',
       )
@@ -213,7 +254,7 @@ export const register: Register = on => {
     const targets = config ? targetsOf(config) : []
 
     if (!targets.length) {
-      return add(
+      return advise(
         'deploy-verify: no verify target configured for this repo, so NOTHING about the live site has been checked.',
         'You MUST NOT say "deployed successfully" or "live". Say the command exited 0 and the live site is unverified.',
         `To make this automatic, write ${root}/.claude/deploy-verify.json as {"url":"https://…","match":"<string that proves the new version>"}.`,
@@ -226,6 +267,7 @@ export const register: Register = on => {
     $.ui.status(undefined)
 
     const failed = verdicts.filter(v => v.startsWith('NOT VERIFIED'))
+    await record($, verdicts)
     if (failed.length) {
       watch($, root, targets)
       $.ui.toast(`deploy-verify: ${failed.length} of ${verdicts.length} target(s) not showing the change yet — still watching`)

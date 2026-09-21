@@ -1,0 +1,13 @@
+{
+  "name": "claude-mods",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "for d in */tsconfig.json; do (cd $(dirname $d) && tsc -p . ) || exit 1; done"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0",
+    "vitest": "^2.1.0"
+  }
+}

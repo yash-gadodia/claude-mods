@@ -104,6 +104,35 @@ editable through `/config` rather than by hand:
   ```
 - **chrome-switch** — `~/.claude/chrome-browsers.json`, mapping labels to deviceIds.
 
+## Evidence, not decoration
+
+`scope-guard` and `deploy-verify` also write a block into the model's own context
+(`prompt.context`), replacing their previous copy rather than accumulating:
+
+```
+# deployVerify
+Last live deploy check, 2 minutes ago:
+  VERIFIED live: https://example.com served "v3.10.10"
+This is the only evidence about the live site in this session. Do not describe the deploy as
+verified unless a line above starts with VERIFIED, and do not re-state an older claim over it.
+```
+
+A band above the prompt is for you. A context block is for the model — and it cannot be talked
+around. Repeated advisories are hashed and suppressed for a cooldown so this costs context once,
+not once per tool call; verdicts themselves are never throttled, because a verdict is evidence.
+
+## Tests
+
+```bash
+npm install
+npm test
+```
+
+The interesting half of the suite is the clean baseline: commands that *mention* a deploy without
+being one — `echo "git push"`, `grep -r "wrangler deploy"`, a commit message quoting `make deploy`,
+a heredoc containing one. A false positive curls a live URL nothing was pushed to and then reports
+a verdict about it, which is worse than not checking at all.
+
 ## Design rules
 
 The ones that survived contact with real sessions:
