@@ -75,6 +75,12 @@
       "source": "./wod-timer",
       "description": "3, 2, 1, GO on submit, a running clock per turn, and the split when it lands.",
       "version": "0.4.1"
+    },
+    {
+      "name": "done-blink",
+      "source": "./done-blink",
+      "description": "Blinks the iTerm2 tab orange when a turn lands, until you type again or three minutes pass.",
+      "version": "0.1.0"
     }
   ],
   "description": "Mods that keep an agent honest, plus a few that make the terminal fun. Function-hooks plugins for Claude Code.",

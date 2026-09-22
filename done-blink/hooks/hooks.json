@@ -1,0 +1,4 @@
+{
+  "description": "turn.complete starts a detached shell loop that alternates the iTerm2 tab colour by writing the tab-colour OSC to the tmux client tty (or the process tty); prompt.submit and turn.start end it and restore the colour; /done-blink sets on, off or the seconds",
+  "modules": ["./register.ts"]
+}

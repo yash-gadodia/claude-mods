@@ -13,7 +13,7 @@ usage  max  volty  opus-5  5h 34%  7d 12%  ctx 41% 82k  $1.23
 scope: 3/4 files
  ▸
 ```
-<sub>Twelve mods, each drawing or guarding its own slice of the session. Above: `usage-band` and `scope-guard`.</sub>
+<sub>Thirteen mods, each drawing or guarding its own slice of the session. Above: `usage-band` and `scope-guard`.</sub>
 
 ![usage-band, wod-band and wod-timer above the prompt](docs/wod-band.png)
 <sub>`usage-band`, `wod-band` and `wod-timer` in a live session.</sub>
@@ -75,6 +75,7 @@ Install only what you want — each mod is independent. Update with
 | **usage-band** | The 5-hour and 7-day limit windows, this session's context fill and cost, above the prompt. Nudges you to `/clear` when the window gets expensive. |
 | **money-band** | Liquid assets, CPF, debt and month-to-date spend, read from a pair of SQLite databases over ssh. Every figure is the database's own; nothing is estimated. |
 | **copy-band** | Click-to-copy buttons above the prompt for every code block and quoted draft in the last answer, plus a durable stash of older ones. Copying runs `pbcopy` directly — no model turn. |
+| **done-blink** | When a turn lands, the iTerm2 tab blinks orange every half second until you send the next prompt or three minutes pass, so a finished session is obvious from any other tab. Works inside tmux with no passthrough config: the escape goes to the tmux client's tty. `/done-blink 60` sets the ceiling. |
 | **chrome-switch** | Switches the Claude in Chrome extension between named browser profiles using `select_browser`, which needs no approval click. `/chromep` maps them. |
 
 ### Fun
@@ -114,6 +115,7 @@ editable through `/config` rather than by hand:
   `efAccount` (default `UOB One`) and `efTarget` (default 30000) feed the `EF 41%` footer label.
 - **usage-band** — `sgdRate` (default 1.30) for the `S$` footer label; `/usage-band sgd off` hides it.
 - **receipt** — `/receipt on|off|status`.
+- **done-blink** — `/done-blink on|off|status|<seconds>` (default 180, max 900).
 - **diff-review** — `/diff-review open|close|on|off`.
 - **deploy-verify** — per-repo, at `<repo>/.claude/deploy-verify.json`:
   ```json

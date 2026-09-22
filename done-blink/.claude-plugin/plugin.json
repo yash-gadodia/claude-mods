@@ -1,0 +1,19 @@
+{
+  "name": "done-blink",
+  "version": "0.1.0",
+  "description": "Blinks the iTerm2 tab orange when a turn lands, for up to three minutes or until you type again, so a finished session is obvious from any other tab.",
+  "author": {
+    "name": "Yash Gadodia"
+  },
+  "license": "MIT",
+  "homepage": "https://github.com/yash-gadodia/claude-mods",
+  "repository": "https://github.com/yash-gadodia/claude-mods",
+  "keywords": [
+    "claude-code",
+    "claude-code-plugin",
+    "claude-mod",
+    "function-hooks",
+    "done-blink",
+    "iterm2"
+  ]
+}
